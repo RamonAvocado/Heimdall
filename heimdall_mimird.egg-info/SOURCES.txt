@@ -1,7 +1,0 @@
-README.md
-main.py
-pyproject.toml
-heimdall_mimird.egg-info/PKG-INFO
-heimdall_mimird.egg-info/SOURCES.txt
-heimdall_mimird.egg-info/dependency_links.txt
-heimdall_mimird.egg-info/top_level.txt
