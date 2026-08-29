@@ -8,3 +8,9 @@ __pycache__/
 .ruff_cache/
 .coverage
 htmlcov/
+
+# dev sandbox - keep the folder, ignore experiments and local data
+sandbox/scratch/*
+!sandbox/scratch/.gitkeep
+*.db
+*.duckdb

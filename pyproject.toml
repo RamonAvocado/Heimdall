@@ -16,6 +16,7 @@ testing = ["pytest>=8.2"]
 all = ["httpx>=0.27", "yfinance>=0.2.40", "pyarrow>=15"]
 
 [dependency-groups]
+# sandbox = ["sqlalchemy>=2"]  # add when the dev sandbox needs a real database
 dev = [
     "pytest>=8.2",
     "pytest-cov>=5.0",
@@ -33,7 +34,8 @@ packages = ["src/heimdall"]
 
 [tool.ruff]
 line-length = 100
-src = ["src", "tests"]
+src = ["src", "tests", "sandbox"]
+extend-exclude = ["sandbox/scratch"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
