@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from heimdall.providers.yfinance.provider import YahooFinanceProvider
+from .provider import YahooFinanceProvider
 
 __all__ = ["YahooFinanceProvider", "_register"]
 

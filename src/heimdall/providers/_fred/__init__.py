@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from heimdall.providers.fred.provider import FredProvider
+from .provider import FredProvider
 
 __all__ = ["FredProvider", "_register"]
 

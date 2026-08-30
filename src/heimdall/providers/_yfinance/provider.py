@@ -39,7 +39,7 @@ class YahooFinanceProvider(Provider):
         requires_auth=False,
     )
 
-    def fetch(self, request: FetchRequest) -> FetchResult:
+    def _fetch(self, request: FetchRequest) -> FetchResult:
         ticker = request.resource.strip()
         interval = require_interval(request, self.capabilities, default="1d")
         start = request.start or _EPOCH

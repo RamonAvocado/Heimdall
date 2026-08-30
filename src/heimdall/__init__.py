@@ -87,7 +87,7 @@ def fetch(provider_id: str, request: FetchRequest | str, /, **kwargs: Any) -> Fe
         request = FetchRequest(resource=request, **kwargs)
     elif kwargs:
         raise TypeError("pass keyword arguments only with the string shorthand")
-    return get_provider(provider_id).fetch(request)
+    return get_provider(provider_id)._fetch(request)
 
 
 def _load_bundled() -> None:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, ClassVar
@@ -61,8 +62,26 @@ class Provider(ABC):
         """Read a configuration value supplied at construction time."""
         return self._config.get(key, default)
 
+    def _validate_request(self, request: FetchRequest) -> None:
+        if not request.resource:
+            raise RequestError("resource cannot be empty")
+
+        if request.start is not None and request.end is not None and request.start >= request.end:
+            raise RequestError("start must be before end")
+
+    def fetch(
+        self,
+        resource: str,
+        interval: str | None = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
+    ) -> FetchResult:
+        request = FetchRequest(resource, interval, start, end)
+        self._validate_request(request)
+        return self._fetch(request)
+
     @abstractmethod
-    def fetch(self, request: FetchRequest) -> FetchResult:
+    def _fetch(self, request: FetchRequest) -> FetchResult:
         """Fetch data for ``request`` and return a :class:`FetchResult`."""
         raise NotImplementedError
 

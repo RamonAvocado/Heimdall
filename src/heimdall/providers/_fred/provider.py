@@ -39,7 +39,7 @@ class FredProvider(Provider):
         super().__init__(config)
         self._timeout = float(self.config("timeout", timeout))
 
-    def fetch(self, request: FetchRequest) -> FetchResult:
+    def _fetch(self, request: FetchRequest) -> FetchResult:
         series_id = request.resource.strip()
 
         try:

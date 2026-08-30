@@ -38,7 +38,7 @@ def assert_provider_conformance(provider: Provider, sample: FetchRequest) -> Fet
     assert isinstance(provider.capabilities, Capabilities), "capabilities must be a Capabilities"
     assert provider.capabilities.data_kinds, "capabilities.data_kinds must be non-empty"
 
-    result = provider.fetch(sample)
+    result = provider._fetch(sample)
     assert isinstance(result, FetchResult), "fetch() must return a FetchResult"
     assert isinstance(result.frame, pl.DataFrame) and result.frame.height > 0, (
         "result.frame must be a non-empty DataFrame"
@@ -58,7 +58,7 @@ def assert_provider_conformance(provider: Provider, sample: FetchRequest) -> Fet
     assert skew < 3600, "retrieved_at should be roughly now"
 
     # A second identical call yields the same shape.
-    again = provider.fetch(sample)
+    again = provider._fetch(sample)
     assert again.schema.name == result.schema.name
     assert set(again.frame.columns) == set(result.frame.columns)
 
@@ -66,7 +66,7 @@ def assert_provider_conformance(provider: Provider, sample: FetchRequest) -> Fet
     if provider.capabilities.intervals:
         bad = replace(sample, interval="definitely-not-a-real-interval")
         with pytest.raises(RequestError):
-            provider.fetch(bad)
+            provider._fetch(bad)
 
     return result
 
