@@ -24,7 +24,7 @@ except ModuleNotFoundError as exc:  # pragma: no cover - exercised only without 
 
 from heimdall.contracts import FetchRequest, FetchResult
 from heimdall.errors import ConfigError, RequestError
-from heimdall.provider import Capabilities, Provider
+from heimdall._provider import Capabilities, Provider
 
 __all__ = ["assert_provider_conformance", "ProviderContractTests"]
 

@@ -22,7 +22,7 @@ from typing import Any
 from heimdall import errors, schemas
 from heimdall._time import utcnow
 from heimdall.contracts import ColumnSpec, FetchRequest, FetchResult, SchemaSpec
-from heimdall.provider import Capabilities, Provider, require_interval
+from heimdall._provider import Capabilities, Provider, require_interval
 from heimdall.registry import (
     ProviderRegistry,
     get_provider,
@@ -56,7 +56,7 @@ __all__ = [
 
 # Providers bundled with Heimdall. Each self-registers via a module-level
 # ``_register(registry)`` hook, but only if its optional dependency is installed.
-_BUNDLED = ("fred", "yfinance")
+_BUNDLED = ("fred", "sp500", "yfinance")
 
 
 def config_from_env(prefix: str, *, environ: Mapping[str, str] | None = None) -> dict[str, str]:
@@ -93,7 +93,7 @@ def fetch(provider_id: str, request: FetchRequest | str, /, **kwargs: Any) -> Fe
 def _load_bundled() -> None:
     for name in _BUNDLED:
         try:
-            module = import_module(f"heimdall.providers.{name}")
+            module = import_module(f"heimdall.providers._{name}")
         except ImportError:
             continue
         hook = getattr(module, "_register", None)

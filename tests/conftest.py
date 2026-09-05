@@ -8,7 +8,7 @@ import polars as pl
 import pytest
 
 from heimdall.contracts import FetchRequest, FetchResult
-from heimdall.provider import Capabilities, Provider
+from heimdall._provider import Capabilities, Provider
 from heimdall.schemas import OBSERVATIONS
 
 

@@ -8,10 +8,10 @@ import polars as pl
 import yfinance as yf
 
 from heimdall._logging import get_logger
+from heimdall._provider import Capabilities, Provider, require_interval
 from heimdall._time import utcnow
 from heimdall.contracts import FetchRequest, FetchResult
 from heimdall.errors import RequestError, UpstreamError
-from heimdall.provider import Capabilities, Provider, require_interval
 from heimdall.schemas import OHLCV_BARS
 
 _log = get_logger("providers.yfinance")
@@ -40,7 +40,7 @@ class YahooFinanceProvider(Provider):
     )
 
     def _fetch(self, request: FetchRequest) -> FetchResult:
-        ticker = request.resource.strip()
+        ticker = request.resource
         interval = require_interval(request, self.capabilities, default="1d")
         start = request.start or _EPOCH
         end = request.end or utcnow()

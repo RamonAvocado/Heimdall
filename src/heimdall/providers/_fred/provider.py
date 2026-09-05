@@ -16,10 +16,10 @@ import httpx
 import polars as pl
 
 from heimdall._logging import get_logger
+from heimdall._provider import Capabilities, Provider
 from heimdall._time import utcnow
 from heimdall.contracts import FetchRequest, FetchResult
 from heimdall.errors import RequestError, UpstreamError
-from heimdall.provider import Capabilities, Provider
 from heimdall.schemas import OBSERVATIONS
 
 _CSV_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv"
@@ -40,7 +40,7 @@ class FredProvider(Provider):
         self._timeout = float(self.config("timeout", timeout))
 
     def _fetch(self, request: FetchRequest) -> FetchResult:
-        series_id = request.resource.strip()
+        series_id = request.resource
 
         try:
             response = httpx.get(

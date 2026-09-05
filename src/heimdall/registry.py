@@ -14,7 +14,7 @@ from typing import Any
 
 from heimdall._logging import get_logger
 from heimdall.errors import ProviderError, ProviderNotFound
-from heimdall.provider import Provider
+from heimdall._provider import Provider
 
 __all__ = ["ProviderRegistry", "registry", "register", "get_provider", "list_providers"]
 

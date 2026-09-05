@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from heimdall.errors import ProviderError, ProviderNotFound
-from heimdall.provider import Capabilities, Provider
+from heimdall._provider import Capabilities, Provider
 
 
 class _P(Provider):

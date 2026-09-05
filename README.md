@@ -13,7 +13,7 @@ schemas.
 ## Install
 
 ```bash
-pip install heimdall-mimird[fred,yfinance]   # or: heimdall-mimird[all]
+pip install heimdall-mimird[fred,yfinance,sp500]   # or: heimdall-mimird[all]
 ```
 
 The core depends only on `polars` (plus a small logging shim). Each provider
@@ -32,6 +32,9 @@ print(result.frame.head())
 bars = heimdall.fetch("yfinance", "AAPL", interval="1d")
 print(bars.frame.tail())
 print(bars.metadata)  # {"ticker": "AAPL", "interval": "1d", "rows": ...}
+
+sp500 = heimdall.fetch("sp500", "constituents")
+print(sp500.frame.select("symbol", "security", "gics_sector").head())
 ```
 
 `heimdall.list_providers()` shows what's registered. Providers are registered

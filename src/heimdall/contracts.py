@@ -45,6 +45,7 @@ class FetchRequest:
     def __post_init__(self) -> None:
         if not isinstance(self.resource, str) or not self.resource.strip():
             raise ValueError("FetchRequest.resource must be a non-empty string")
+        object.__setattr__(self, "resource", self.resource.strip())
 
 
 @dataclass(frozen=True, slots=True)
