@@ -16,6 +16,12 @@ Legend: `[x]` shipped · `[~]` partially built · `[ ]` planned
 - [x] **Tooling** - ruff, mypy, pytest (with a `network` marker), GitHub Actions CI.
 - [x] **Dev sandbox** - `sandbox/` with a `python -m sandbox` runner and example
   scripts; results print to the terminal and can be dumped to parquet / CSV.
+- [x] **Batch + async fetch** - `fetch()` / `heimdall.fetch()` take one resource
+  or a list (a list returns a `BatchResult` that collects per-resource
+  failures); `afetch()` is the async mirror (blocking work in a worker thread,
+  lists fanned out concurrently). Providers still implement only `_fetch`;
+  `_fetch_many` + `native_batch` is an opt-in override for upstreams with a real
+  multi-resource endpoint (yfinance uses it).
 
 ## Planned (next)
 

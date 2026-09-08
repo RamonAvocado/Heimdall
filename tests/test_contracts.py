@@ -1,12 +1,19 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 import polars as pl
 import pytest
 
-from heimdall.contracts import ColumnSpec, FetchRequest, SchemaSpec
-from heimdall.errors import SchemaError
+from heimdall.contracts import (
+    BatchResult,
+    ColumnSpec,
+    FetchRequest,
+    FetchResult,
+    SchemaSpec,
+)
+from heimdall.errors import RequestError, SchemaError
+from heimdall.schemas import OBSERVATIONS
 
 
 def test_fetch_request_rejects_empty_resource() -> None:
@@ -95,3 +102,34 @@ def test_generic_table_only_checks_non_empty() -> None:
     GENERIC_TABLE.validate(pl.DataFrame({"anything": [1]}))
     with pytest.raises(SchemaError, match="no rows"):
         GENERIC_TABLE.validate(pl.DataFrame({"anything": []}))
+
+
+def _obs_result(series_id: str) -> FetchResult:
+    frame = pl.DataFrame(
+        {
+            "timestamp": [datetime(2024, 1, 1), datetime(2024, 1, 2)],
+            "series_id": [series_id, series_id],
+            "value": [1.0, 2.0],
+        }
+    ).with_columns(pl.col("timestamp").cast(pl.Datetime))
+    return FetchResult(
+        frame=frame,
+        schema=OBSERVATIONS,
+        provider_id="dummy",
+        request=FetchRequest(resource=series_id),
+        retrieved_at=datetime.now(UTC),
+    )
+
+
+def test_batch_result_frame_concatenates_ok_frames() -> None:
+    batch = BatchResult(ok={"A": _obs_result("A"), "B": _obs_result("B")}, failed={})
+    assert bool(batch) and len(batch) == 2
+    assert batch.frame.height == 4
+    assert set(batch.frame["series_id"].unique().to_list()) == {"A", "B"}
+
+
+def test_batch_result_frame_raises_when_all_failed() -> None:
+    batch = BatchResult(ok={}, failed={"A": RequestError("nope")})
+    assert not batch
+    with pytest.raises(RequestError, match="no successful results"):
+        _ = batch.frame

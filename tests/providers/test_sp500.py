@@ -4,7 +4,7 @@ import httpx
 import pytest
 import respx
 
-from heimdall.contracts import FetchRequest
+from heimdall.contracts import BatchResult, FetchRequest
 from heimdall.errors import RequestError, UpstreamError
 from heimdall.providers._sp500 import SP500Provider
 from heimdall.schemas import GENERIC_TABLE
@@ -55,6 +55,18 @@ def test_http_error_becomes_upstream_error() -> None:
         SP500Provider().fetch("constituents")
 
 
+@respx.mock
+def test_fetch_many_wraps_single_and_collects_bad_resource() -> None:
+    respx.get(_URL).mock(return_value=httpx.Response(200, text=_CSV))
+
+    batch = SP500Provider().fetch(["constituents", "AAPL"])
+
+    assert isinstance(batch, BatchResult)
+    assert list(batch.ok) == ["constituents"]
+    assert list(batch.failed) == ["AAPL"]
+    assert isinstance(batch.failed["AAPL"], RequestError)
+
+
 class TestSP500Contract(ProviderContractTests):
     def setup_method(self) -> None:
         self._router = respx.mock(assert_all_called=False)
@@ -73,6 +85,6 @@ class TestSP500Contract(ProviderContractTests):
 
 @pytest.mark.network
 def test_sp500_live() -> None:
-    result = SP500Provider().fetch(FetchRequest(resource="constituents"))
+    result = SP500Provider().fetch("constituents")
     GENERIC_TABLE.validate(result.frame)
     assert result.frame.height > 400

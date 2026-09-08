@@ -16,13 +16,14 @@ from typing import Any
 
 import polars as pl
 
-from heimdall.errors import SchemaError
+from heimdall.errors import RequestError, SchemaError
 
 __all__ = [
     "FetchRequest",
     "ColumnSpec",
     "SchemaSpec",
     "FetchResult",
+    "BatchResult",
 ]
 
 
@@ -128,6 +129,36 @@ class FetchResult:
     request: FetchRequest
     retrieved_at: datetime
     metadata: Mapping[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class BatchResult:
+    """What :meth:`~heimdall.provider.Provider.fetch` returns for a list of
+    resources. Never raised through: a resource that fails lands in ``failed``,
+    the rest are in ``ok``. Both are keyed by resource, in request order.
+    """
+
+    ok: dict[str, FetchResult]
+    failed: dict[str, Exception]
+
+    def __bool__(self) -> bool:
+        return bool(self.ok)
+
+    def __len__(self) -> int:
+        return len(self.ok)
+
+    @property
+    def frame(self) -> pl.DataFrame:
+        """Every successful frame stacked vertically, in ``ok`` order. The
+        per-provider schemas carry a symbol / series id column already, so the
+        rows stay distinguishable; the result is **not** re-sorted across
+        resources, so it will not pass a single-series ``SchemaSpec.validate``
+        (each ``ok`` frame individually does). Raises
+        :class:`~heimdall.errors.RequestError` if nothing succeeded.
+        """
+        if not self.ok:
+            raise RequestError("BatchResult.frame: no successful results")
+        return pl.concat([r.frame for r in self.ok.values()], how="vertical_relaxed")
 
 
 def _dtype_matches(

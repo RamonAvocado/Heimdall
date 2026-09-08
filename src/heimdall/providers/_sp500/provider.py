@@ -9,6 +9,7 @@ is the only accepted value.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
 from io import StringIO
 
@@ -18,7 +19,7 @@ import polars as pl
 from heimdall._logging import get_logger
 from heimdall._provider import Capabilities, Provider
 from heimdall._time import utcnow
-from heimdall.contracts import FetchRequest, FetchResult
+from heimdall.contracts import BatchResult, FetchRequest, FetchResult
 from heimdall.errors import RequestError, UpstreamError
 from heimdall.schemas import GENERIC_TABLE
 
@@ -44,11 +45,11 @@ class SP500Provider(Provider):
 
     def fetch(
         self,
-        resource: str = _RESOURCE,
+        resource: str | Sequence[str] = _RESOURCE,
         interval: str | None = None,
         start: datetime | None = None,
         end: datetime | None = None,
-    ) -> FetchResult:
+    ) -> FetchResult | BatchResult:
         """Only one resource exists here, so default it - callers shouldn't
         have to know the sentinel string just to get the list."""
         return super().fetch(resource, interval, start, end)

@@ -18,7 +18,7 @@ class DummyProvider(Provider):
     id = "dummy"
     capabilities = Capabilities(data_kinds=(OBSERVATIONS.name,), intervals=("1d",))
 
-    def fetch(self, request: FetchRequest) -> FetchResult:
+    def _fetch(self, request: FetchRequest) -> FetchResult:
         frame = pl.DataFrame(
             {
                 "timestamp": [datetime(2024, 1, 1), datetime(2024, 1, 2)],

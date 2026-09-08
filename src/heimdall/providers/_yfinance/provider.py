@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 
 import polars as pl
 import yfinance as yf
@@ -10,8 +11,8 @@ import yfinance as yf
 from heimdall._logging import get_logger
 from heimdall._provider import Capabilities, Provider, require_interval
 from heimdall._time import utcnow
-from heimdall.contracts import FetchRequest, FetchResult
-from heimdall.errors import RequestError, UpstreamError
+from heimdall.contracts import BatchResult, FetchRequest, FetchResult
+from heimdall.errors import HeimdallError, RequestError, UpstreamError
 from heimdall.schemas import OHLCV_BARS
 
 _log = get_logger("providers.yfinance")
@@ -32,6 +33,7 @@ _PRICE_COLS = ("open", "high", "low", "close")
 
 class YahooFinanceProvider(Provider):
     id = "yfinance"
+    native_batch = True
     capabilities = Capabilities(
         data_kinds=(OHLCV_BARS.name,),
         intervals=("1d", "1h", "1wk", "1mo"),
@@ -42,14 +44,12 @@ class YahooFinanceProvider(Provider):
     def _fetch(self, request: FetchRequest) -> FetchResult:
         ticker = request.resource
         interval = require_interval(request, self.capabilities, default="1d")
-        start = request.start or _EPOCH
-        end = request.end or utcnow()
 
         try:
             raw = yf.download(
                 tickers=ticker,
-                start=start.date().isoformat(),
-                end=end.date().isoformat(),
+                start=(request.start or _EPOCH).date().isoformat(),
+                end=(request.end or utcnow()).date().isoformat(),
                 interval=interval,
                 auto_adjust=True,
                 progress=False,
@@ -62,9 +62,57 @@ class YahooFinanceProvider(Provider):
 
         if getattr(raw.columns, "nlevels", 1) > 1:
             raw.columns = raw.columns.get_level_values(0)
-        raw = raw.reset_index().rename(columns=_RENAME)
+        return self._normalize(raw, ticker, interval, request)
 
-        frame = pl.from_pandas(raw)
+    def _fetch_many(self, requests: list[FetchRequest]) -> BatchResult:
+        if len(requests) == 1:  # no need for a multi-ticker download / column slicing
+            req = requests[0]
+            try:
+                return BatchResult({req.resource: self._fetch(req)}, {})
+            except HeimdallError as exc:
+                return BatchResult({}, {req.resource: exc})
+
+        tickers = [r.resource for r in requests]
+        interval = require_interval(requests[0], self.capabilities, default="1d")
+        start = min((r.start for r in requests if r.start is not None), default=_EPOCH)
+        end = max((r.end for r in requests if r.end is not None), default=utcnow())
+
+        try:
+            raw = yf.download(
+                tickers=" ".join(tickers),
+                start=start.date().isoformat(),
+                end=end.date().isoformat(),
+                interval=interval,
+                auto_adjust=True,
+                progress=False,
+                group_by="ticker",
+            )
+        except Exception as exc:  # noqa: BLE001 - yfinance raises a grab-bag of types
+            raise UpstreamError(f"yfinance batch download failed for {tickers}: {exc}") from exc
+
+        ok: dict[str, FetchResult] = {}
+        failed: dict[str, Exception] = {}
+        for request in requests:
+            ticker = request.resource
+            sub = _slice_ticker(raw, ticker)
+            if sub is None or sub.empty or sub.dropna(how="all").empty:
+                failed[ticker] = RequestError(f"yfinance returned no data for {ticker!r}")
+                continue
+            try:
+                ok[ticker] = self._normalize(sub, ticker, interval, request)
+            except HeimdallError as exc:
+                failed[ticker] = exc
+        return BatchResult(ok, failed)
+
+    def _normalize(
+        self, raw: Any, ticker: str, interval: str, request: FetchRequest
+    ) -> FetchResult:
+        """Turn a single-ticker pandas frame (OHLCV columns, datetime index)
+        into a schema-valid :class:`FetchResult`.
+        """
+        pdf = raw.reset_index().rename(columns=_RENAME)
+        frame = pl.from_pandas(pdf)
+
         missing = {"timestamp", *_PRICE_COLS} - set(frame.columns)
         if missing:
             raise UpstreamError(
@@ -103,3 +151,19 @@ class YahooFinanceProvider(Provider):
             retrieved_at=utcnow(),
             metadata={"ticker": ticker, "interval": interval, "rows": valid.height},
         )
+
+
+def _slice_ticker(raw: Any, ticker: str) -> Any | None:
+    """Pull one ticker's sub-frame out of a multi-ticker download. Handles
+    either column-MultiIndex order ((ticker, field) or (field, ticker)).
+    Returns ``None`` if the ticker is absent.
+    """
+    columns = getattr(raw, "columns", None)
+    if columns is None:
+        return None
+    if getattr(columns, "nlevels", 1) == 1:
+        return raw  # single ticker: yfinance did not build a MultiIndex
+    for level in range(columns.nlevels):
+        if ticker in columns.get_level_values(level):
+            return raw.xs(ticker, axis=1, level=level)
+    return None

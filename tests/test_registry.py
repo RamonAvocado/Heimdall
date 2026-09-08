@@ -10,7 +10,7 @@ class _P(Provider):
     id = "p"
     capabilities = Capabilities(data_kinds=("table.generic",))
 
-    def fetch(self, request):  # pragma: no cover - not exercised here
+    def _fetch(self, request):  # pragma: no cover - not exercised here
         raise NotImplementedError
 
 

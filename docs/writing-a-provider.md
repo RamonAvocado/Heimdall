@@ -47,7 +47,7 @@ class CsvUrlProvider(Provider):
     id = "csv-url"
     capabilities = Capabilities(data_kinds=(CSV_SERIES.name,))
 
-    def fetch(self, request: FetchRequest) -> FetchResult:
+    def _fetch(self, request: FetchRequest) -> FetchResult:
         url = request.params.get("url") or request.resource
         try:
             resp = httpx.get(url, timeout=30, follow_redirects=True)
@@ -77,6 +77,19 @@ class CsvUrlProvider(Provider):
             retrieved_at=heimdall.utcnow(),
         )
 ```
+
+You implement `_fetch` (one resource). The base `Provider` wraps it:
+
+- `provider.fetch("X")` / `heimdall.fetch("csv-url", "X")` - one resource, returns `FetchResult`.
+- `provider.fetch(["X", "Y"])` - a list, returns a `BatchResult` (`.ok` /
+  `.failed` dicts keyed by resource, plus a combined `.frame`). A resource that
+  raises a `HeimdallError` lands in `.failed`; the batch never raises for it.
+- `provider.afetch(...)` / `heimdall.afetch(...)` - async mirror of both. The
+  blocking `_fetch` runs in a worker thread; a list is fanned out concurrently.
+
+You get all of that for free. Only override `_fetch_many(self, requests)` (and
+set `native_batch = True`) if the upstream can serve several resources in one
+call - see `heimdall.providers._yfinance` for an example.
 
 ## Register and use it
 

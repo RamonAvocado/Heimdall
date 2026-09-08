@@ -22,7 +22,7 @@ except ModuleNotFoundError as exc:  # pragma: no cover - exercised only without 
         "heimdall.testing requires pytest. Install it with:  pip install heimdall-mimird[testing]"
     ) from exc
 
-from heimdall.contracts import FetchRequest, FetchResult
+from heimdall.contracts import BatchResult, FetchRequest, FetchResult
 from heimdall.errors import ConfigError, RequestError
 from heimdall._provider import Capabilities, Provider
 
@@ -67,6 +67,14 @@ def assert_provider_conformance(provider: Provider, sample: FetchRequest) -> Fet
         bad = replace(sample, interval="definitely-not-a-real-interval")
         with pytest.raises(RequestError):
             provider._fetch(bad)
+
+    # A one-item list is a BatchResult carrying exactly that resource.
+    batch = provider.fetch([sample.resource], sample.interval, sample.start, sample.end)
+    assert isinstance(batch, BatchResult), "fetch([...]) must return a BatchResult"
+    assert list(batch.ok) == [sample.resource] and not batch.failed, (
+        f"a one-item batch should put exactly that resource in .ok, got {batch}"
+    )
+    assert batch.frame.height > 0, "BatchResult.frame must be non-empty"
 
     return result
 
