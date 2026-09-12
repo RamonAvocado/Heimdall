@@ -1,6 +1,6 @@
 [project]
 name = "heimdall-mimird"
-version = "0.4.0"
+version = "0.5.0"
 description = "A data-provider SDK"
 readme = "README.md"
 requires-python = ">=3.11"
