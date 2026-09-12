@@ -7,7 +7,7 @@ import pytest
 import respx
 
 import heimdall
-from heimdall.contracts import BatchResult, FetchResult
+from heimdall._contracts import BatchResult, FetchResult
 from heimdall.providers._fred import FredProvider
 
 _CSV = "observation_date,DGS10\n2024-01-02,3.95\n2024-01-03,3.91\n"

@@ -24,11 +24,11 @@ class ConfigError(ProviderError):
 
 
 class RequestError(HeimdallError):
-    """The :class:`~heimdall.contracts.FetchRequest` is invalid for this provider."""
+    """The :class:`~heimdall._contracts.FetchRequest` is invalid for this provider."""
 
 
 class SchemaError(HeimdallError):
-    """A frame does not match the :class:`~heimdall.contracts.SchemaSpec` it claims."""
+    """A frame does not match the :class:`~heimdall._contracts.SchemaSpec` it claims."""
 
 
 class UpstreamError(HeimdallError):

@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 import polars as pl
 import pytest
 
-from heimdall.contracts import (
+from heimdall._contracts import (
     BatchResult,
     ColumnSpec,
     FetchRequest,

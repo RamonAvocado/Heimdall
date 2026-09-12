@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 import polars as pl
 import pytest
 
-from heimdall.contracts import FetchRequest, FetchResult
+from heimdall._contracts import FetchRequest, FetchResult
 from heimdall._provider import Capabilities, Provider
 from heimdall.schemas import OBSERVATIONS
 
@@ -42,6 +42,6 @@ def dummy_provider() -> DummyProvider:
 
 @pytest.fixture
 def fresh_registry():
-    from heimdall.registry import ProviderRegistry
+    from heimdall._registry import ProviderRegistry
 
     return ProviderRegistry()

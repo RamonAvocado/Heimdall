@@ -46,7 +46,11 @@ result = await heimdall.afetch("fred", ["DGS10", "GDP"])
 
 `heimdall.list_providers()` shows what's registered. Providers are registered
 automatically when their extra is installed; register your own with
-`heimdall.register(MyProvider)`.
+`heimdall.register(MyProvider)` (pass a constructed instance,
+`heimdall.register(MyProvider(timeout=10))`, to override its `__init__`
+defaults). Asking `heimdall.fetch(...)` for a provider whose extra is missing
+raises `ProviderNotFound` telling you which extra to install, rather than
+failing blank.
 
 ## Writing a provider
 

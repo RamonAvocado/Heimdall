@@ -16,10 +16,10 @@ from io import StringIO
 import httpx
 import polars as pl
 
+from heimdall._contracts import BatchResult, FetchRequest, FetchResult
 from heimdall._logging import get_logger
 from heimdall._provider import Capabilities, Provider
 from heimdall._time import utcnow
-from heimdall.contracts import BatchResult, FetchRequest, FetchResult
 from heimdall.errors import RequestError, UpstreamError
 from heimdall.schemas import GENERIC_TABLE
 
@@ -39,9 +39,8 @@ class SP500Provider(Provider):
         requires_auth=False,
     )
 
-    def __init__(self, config: dict | None = None) -> None:
-        super().__init__(config)
-        self._timeout = float(self.config("timeout", 30.0))
+    def __init__(self, *, timeout: float = 30.0) -> None:
+        self._timeout = timeout
 
     def fetch(
         self,

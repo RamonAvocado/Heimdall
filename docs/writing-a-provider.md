@@ -29,7 +29,7 @@ import polars as pl
 
 import heimdall
 from heimdall import Capabilities, FetchRequest, FetchResult, Provider
-from heimdall.contracts import ColumnSpec, SchemaSpec
+from heimdall.schemas import ColumnSpec, SchemaSpec
 from heimdall.errors import RequestError, UpstreamError
 
 CSV_SERIES = SchemaSpec(
@@ -100,11 +100,22 @@ heimdall.register(CsvUrlProvider)
 result = heimdall.fetch("csv-url", "https://example.com/rates.csv")
 ```
 
-For config/secrets, declare `required_config` in `Capabilities` and pass values
-at registration - never read the environment inside the provider:
+For config/secrets, add typed keyword arguments to your provider's `__init__` -
+never read the environment inside the provider. `heimdall.register(MyProvider)`
+instantiates the class with no arguments, so those defaults apply; to override
+one, register a constructed instance:
 
 ```python
-heimdall.register(MyProvider, config=heimdall.config_from_env("HEIMDALL_MYPROVIDER_"))
+class MyProvider(Provider):
+    id = "mine"
+    capabilities = Capabilities(data_kinds=(MY_SCHEMA.name,), requires_auth=True)
+
+    def __init__(self, *, api_key: str, timeout: float = 30.0) -> None:
+        self._api_key = api_key
+        self._timeout = timeout
+
+
+heimdall.register(MyProvider(api_key=os.environ["MYPROVIDER_API_KEY"]))
 ```
 
 ## Prove it conforms
@@ -135,4 +146,3 @@ implement `make_provider()` / `sample_request()`.
 - `result.provider_id == self.id`; `retrieved_at` is timezone-aware.
 - Two identical requests return the same schema and columns.
 - An unsupported `interval` raises `RequestError` (not a bare exception).
-- Missing `required_config` raises `ConfigError` at construction.

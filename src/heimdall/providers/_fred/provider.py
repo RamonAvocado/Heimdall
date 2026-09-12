@@ -2,9 +2,9 @@
 
 This uses the public ``fredgraph.csv`` download endpoint, which needs no API
 key. The official ``api.stlouisfed.org`` JSON API (vintages, metadata,
-pagination) needs ``FRED_API_KEY`` and is the eventual upgrade path - flip
-``requires_auth`` / ``required_config`` in :attr:`FredProvider.capabilities`
-when that lands.
+pagination) needs ``FRED_API_KEY`` and is the eventual upgrade path - set
+``requires_auth=True`` in :attr:`FredProvider.capabilities` and add an
+``api_key`` keyword to ``__init__`` when that lands.
 """
 
 from __future__ import annotations
@@ -15,10 +15,10 @@ from io import StringIO
 import httpx
 import polars as pl
 
+from heimdall._contracts import FetchRequest, FetchResult
 from heimdall._logging import get_logger
 from heimdall._provider import Capabilities, Provider
 from heimdall._time import utcnow
-from heimdall.contracts import FetchRequest, FetchResult
 from heimdall.errors import RequestError, UpstreamError
 from heimdall.schemas import OBSERVATIONS
 
@@ -35,9 +35,8 @@ class FredProvider(Provider):
         requires_auth=False,
     )
 
-    def __init__(self, config: dict | None = None, *, timeout: float = 30.0) -> None:
-        super().__init__(config)
-        self._timeout = float(self.config("timeout", timeout))
+    def __init__(self, *, timeout: float = 30.0) -> None:
+        self._timeout = timeout
 
     def _fetch(self, request: FetchRequest) -> FetchResult:
         series_id = request.resource

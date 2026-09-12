@@ -4,7 +4,7 @@ import httpx
 import pytest
 import respx
 
-from heimdall.contracts import BatchResult, FetchRequest
+from heimdall._contracts import BatchResult, FetchRequest
 from heimdall.errors import RequestError, UpstreamError
 from heimdall.providers._sp500 import SP500Provider
 from heimdall.schemas import GENERIC_TABLE

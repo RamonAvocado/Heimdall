@@ -8,7 +8,7 @@ from pathlib import Path
 
 import polars as pl
 
-from heimdall.contracts import FetchResult
+from heimdall import FetchResult
 
 SCRATCH = Path(__file__).resolve().parent / "scratch"
 

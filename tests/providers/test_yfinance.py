@@ -7,7 +7,7 @@ import polars as pl
 import pytest
 import yfinance as yf
 
-from heimdall.contracts import BatchResult, FetchRequest
+from heimdall._contracts import BatchResult, FetchRequest
 from heimdall.errors import RequestError, UpstreamError
 from heimdall.providers._yfinance import YahooFinanceProvider
 from heimdall.schemas import OHLCV_BARS

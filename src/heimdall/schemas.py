@@ -1,17 +1,25 @@
-"""Canonical :class:`~heimdall.contracts.SchemaSpec` values.
+"""Schema vocabulary: the :class:`SchemaSpec` / :class:`ColumnSpec` types plus
+the canonical spec values.
 
-Two finance shapes plus a catch-all. A provider is free to define its own
-instead; these exist so that common cases share a vocabulary and the
-conformance kit can make stronger assertions.
+Two finance shapes plus a catch-all. A provider is free to define its own with
+``SchemaSpec`` / ``ColumnSpec``; these exist so common cases share a vocabulary
+and the conformance kit can make stronger assertions.
 """
 
 from __future__ import annotations
 
 import polars as pl
 
-from heimdall.contracts import ColumnSpec, SchemaSpec
+from heimdall._contracts import ColumnSpec, SchemaSpec
 
-__all__ = ["OHLCV_BARS", "OBSERVATIONS", "GENERIC_TABLE", "KNOWN_SCHEMAS"]
+__all__ = [
+    "SchemaSpec",
+    "ColumnSpec",
+    "OHLCV_BARS",
+    "OBSERVATIONS",
+    "GENERIC_TABLE",
+    "KNOWN_SCHEMAS",
+]
 
 
 OHLCV_BARS = SchemaSpec(

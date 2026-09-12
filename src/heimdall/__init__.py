@@ -1,5 +1,4 @@
 """Heimdall: a host-agnostic data-provider SDK.
-
 Quick start::
 
     import heimdall
@@ -14,43 +13,33 @@ Write your own provider by subclassing :class:`heimdall.Provider` and calling
 
 from __future__ import annotations
 
-import os
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from importlib import import_module
 from typing import Any
 
 from heimdall import errors, schemas
-from heimdall._time import utcnow
-from heimdall.contracts import BatchResult, ColumnSpec, FetchRequest, FetchResult, SchemaSpec
+from heimdall._contracts import BatchResult, FetchRequest, FetchResult
 from heimdall._provider import Capabilities, Provider, require_interval
-from heimdall.registry import (
-    ProviderRegistry,
-    get_provider,
-    list_providers,
-    register,
-    registry,
-)
+from heimdall._registry import get_provider, list_providers, register, registry
+from heimdall._time import utcnow
 
 __version__ = "0.5.0"
 
+# Only what a caller or a provider author actually touches. Schema types live in
+# ``heimdall.schemas``; the registry object and ``get_provider`` stay importable
+# but off the blessed surface.
 __all__ = [
     "__version__",
     "fetch",
     "afetch",
-    "config_from_env",
     "utcnow",
     "FetchRequest",
     "FetchResult",
     "BatchResult",
-    "SchemaSpec",
-    "ColumnSpec",
     "Provider",
     "Capabilities",
     "require_interval",
-    "ProviderRegistry",
-    "registry",
     "register",
-    "get_provider",
     "list_providers",
     "errors",
     "schemas",
@@ -59,22 +48,6 @@ __all__ = [
 # Providers bundled with Heimdall. Each self-registers via a module-level
 # ``_register(registry)`` hook, but only if its optional dependency is installed.
 _BUNDLED = ("fred", "sp500", "yfinance")
-
-
-def config_from_env(prefix: str, *, environ: Mapping[str, str] | None = None) -> dict[str, str]:
-    """Collect env vars starting with ``prefix`` into a config mapping.
-
-    ``config_from_env("HEIMDALL_FRED_")`` with ``HEIMDALL_FRED_API_KEY=x`` set
-    returns ``{"api_key": "x"}``. Providers never read the environment
-    themselves; the caller builds config and passes it to
-    :func:`register`.
-    """
-    src = os.environ if environ is None else environ
-    return {
-        key[len(prefix) :].lower(): value
-        for key, value in src.items()
-        if key.startswith(prefix) and len(key) > len(prefix)
-    }
 
 
 def fetch(
@@ -114,7 +87,11 @@ def _load_bundled() -> None:
     for name in _BUNDLED:
         try:
             module = import_module(f"heimdall.providers._{name}")
-        except ImportError:
+        except ImportError as exc:
+            # TODO: Think about this
+            # Its extra isn't installed. Remember why, so a later
+            # ``heimdall.fetch(name, ...)`` can say so instead of failing blank.
+            registry.mark_unavailable(name, str(exc))
             continue
         hook = getattr(module, "_register", None)
         if callable(hook):

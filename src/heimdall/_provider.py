@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import asyncio
 from abc import ABC, abstractmethod
-from datetime import datetime
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, ClassVar
 
-from heimdall.contracts import BatchResult, FetchRequest, FetchResult
-from heimdall.errors import ConfigError, HeimdallError, RequestError
+from heimdall._contracts import BatchResult, FetchRequest, FetchResult
+from heimdall.errors import HeimdallError, RequestError
 
 __all__ = ["Capabilities", "Provider", "require_interval"]
 
@@ -19,16 +19,20 @@ __all__ = ["Capabilities", "Provider", "require_interval"]
 class Capabilities:
     """What a provider can do, so a host can route and validate before calling.
 
-    ``data_kinds`` holds :attr:`~heimdall.contracts.SchemaSpec.name` values the
+    ``data_kinds`` holds :attr:`~heimdall._contracts.SchemaSpec.name` values the
     provider may emit. An empty ``intervals`` means the provider is not
     interval-based (e.g. a daily economic series) or accepts anything.
+
+    This is capability metadata only. A provider's own configuration (timeouts,
+    credentials, ...) is declared as typed keyword arguments on its ``__init__``,
+    not here. ``requires_auth`` / ``rate_limit_per_min`` stay because a host reads
+    them *before* constructing the provider, to route and pace calls.
     """
 
     data_kinds: tuple[str, ...]
     intervals: tuple[str, ...] = ()
     supports_date_range: bool = True
     requires_auth: bool = False
-    required_config: tuple[str, ...] = ()
     rate_limit_per_min: int | None = None
 
 
@@ -49,12 +53,6 @@ class Provider(ABC):
     #: the base class fetches a list one resource at a time.
     native_batch: ClassVar[bool] = False
 
-    def __init__(self, config: Mapping[str, Any] | None = None) -> None:
-        self._config: dict[str, Any] = dict(config or {})
-        missing = [k for k in self.capabilities.required_config if k not in self._config]
-        if missing:
-            raise ConfigError(f"{self.id}: missing required config keys: {missing}")
-
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
         if getattr(cls, "__abstractmethods__", None):
@@ -63,10 +61,6 @@ class Provider(ABC):
             raise TypeError(f"{cls.__name__} must set a non-empty string class attribute 'id'")
         if not isinstance(getattr(cls, "capabilities", None), Capabilities):
             raise TypeError(f"{cls.__name__} must set 'capabilities' to a Capabilities instance")
-
-    def config(self, key: str, default: Any = None) -> Any:
-        """Read a configuration value supplied at construction time."""
-        return self._config.get(key, default)
 
     def _validate_request(self, request: FetchRequest) -> None:
         if not request.resource:

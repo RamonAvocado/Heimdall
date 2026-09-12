@@ -9,7 +9,7 @@ __all__ = ["YahooFinanceProvider", "_register"]
 
 def _register(registry: object) -> None:
     """Hook called by :func:`heimdall._load_bundled` when the ``yfinance`` extra is installed."""
-    from heimdall.registry import ProviderRegistry
+    from heimdall._registry import ProviderRegistry
 
     assert isinstance(registry, ProviderRegistry)
     if YahooFinanceProvider.id not in registry.list():

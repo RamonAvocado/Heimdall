@@ -1,5 +1,9 @@
 """Show how config / credentials reach a provider - and what happens without them.
 
+Config is plain typed keyword arguments on the provider's ``__init__``. The
+caller builds the values (here from the environment) and constructs the
+provider; the provider never reads ``os.environ`` itself.
+
 No network needed.
 
     uv run python sandbox/examples/05_provider_with_config.py
@@ -27,11 +31,17 @@ class TokenEcho(Provider):
     """Trivial provider that just proves it received its api_key."""
 
     id = "token-echo"
-    capabilities = Capabilities(data_kinds=(GENERIC_TABLE.name,), required_config=("api_key",))
+    capabilities = Capabilities(data_kinds=(GENERIC_TABLE.name,), requires_auth=True)
 
-    def fetch(self, request: FetchRequest) -> FetchResult:
+    def __init__(self, *, api_key: str, timeout: float = 30.0) -> None:
+        if not api_key:
+            raise ConfigError("token-echo: api_key must be a non-empty string")
+        self._api_key = api_key
+        self._timeout = timeout
+
+    def _fetch(self, request: FetchRequest) -> FetchResult:
         frame = pl.DataFrame(
-            {"resource": [request.resource], "api_key_seen": [self.config("api_key")]}
+            {"resource": [request.resource], "api_key_seen": [self._api_key]}
         )
         return FetchResult(
             frame=frame,
@@ -42,15 +52,14 @@ class TokenEcho(Provider):
         )
 
 
-# 1. Construct without the required key -> ConfigError, raised early.
+# 1. Construct without the key -> the provider's own ConfigError, raised early.
 try:
-    TokenEcho()
+    TokenEcho(api_key="")
 except ConfigError as exc:
-    print(f"no config -> {exc}\n")
+    print(f"bad config -> {exc}\n")
 
-# 2. Supply it. The caller builds the config; the provider never reads os.environ.
+# 2. Supply it. The caller reads the environment and passes a typed argument.
 os.environ.setdefault("HEIMDALL_TOKENECHO_API_KEY", "sk-demo-123")
-config = heimdall.config_from_env("HEIMDALL_TOKENECHO_")
-heimdall.register(TokenEcho, config=config)
+heimdall.register(TokenEcho(api_key=os.environ["HEIMDALL_TOKENECHO_API_KEY"]))
 
 show(heimdall.fetch("token-echo", "hello"))

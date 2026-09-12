@@ -22,9 +22,9 @@ except ModuleNotFoundError as exc:  # pragma: no cover - exercised only without 
         "heimdall.testing requires pytest. Install it with:  pip install heimdall-mimird[testing]"
     ) from exc
 
-from heimdall.contracts import BatchResult, FetchRequest, FetchResult
-from heimdall.errors import ConfigError, RequestError
+from heimdall._contracts import BatchResult, FetchRequest, FetchResult
 from heimdall._provider import Capabilities, Provider
+from heimdall.errors import RequestError
 
 __all__ = ["assert_provider_conformance", "ProviderContractTests"]
 
@@ -101,14 +101,6 @@ class ProviderContractTests:
 
     def test_conformance(self) -> None:
         assert_provider_conformance(self.make_provider(), self.sample_request())
-
-    def test_missing_required_config_raises(self) -> None:
-        provider_cls = type(self.make_provider())
-        required = provider_cls.capabilities.required_config
-        if not required:
-            pytest.skip("provider declares no required config")
-        with pytest.raises(ConfigError):
-            provider_cls({})
 
     def test_empty_resource_rejected(self) -> None:
         with pytest.raises((ValueError, RequestError)):

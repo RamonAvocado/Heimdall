@@ -7,7 +7,7 @@ import polars as pl
 import pytest
 import respx
 
-from heimdall.contracts import BatchResult, FetchRequest
+from heimdall._contracts import BatchResult, FetchRequest
 from heimdall.errors import RequestError, UpstreamError
 from heimdall.providers._fred import FredProvider
 from heimdall.schemas import OBSERVATIONS
@@ -40,6 +40,11 @@ def test_date_range_filter() -> None:
         "DGS10", start=datetime(2024, 1, 3), end=datetime(2024, 1, 4)
     )
     assert result.frame["timestamp"].to_list() == [datetime(2024, 1, 3)]
+
+
+def test_timeout_is_a_typed_init_arg() -> None:
+    assert FredProvider()._timeout == 30.0
+    assert FredProvider(timeout=5.0)._timeout == 5.0
 
 
 @respx.mock

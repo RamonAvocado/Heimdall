@@ -1,5 +1,4 @@
 # sandbox/
-
 A dev-only playground for exercising Heimdall providers by hand. **Not shipped** -
 the package build only includes `src/heimdall`.
 
@@ -36,7 +35,7 @@ uv run python sandbox/examples/03_custom_provider.py      # no network
 | `02_yfinance_to_terminal.py` | fetch OHLCV bars, print them |
 | `03_custom_provider.py` | define + register a provider inline, then conformance-check it |
 | `04_export_to_files.py` | fetch, write parquet + CSV to `scratch/`, read back |
-| `05_provider_with_config.py` | `required_config`, `config_from_env`, and the `ConfigError` when a key is missing |
+| `05_provider_with_config.py` | typed `__init__` config, registering a constructed instance, `ConfigError` on a bad key |
 
 ## Exporting to a real database
 

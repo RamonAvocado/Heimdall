@@ -8,10 +8,10 @@ from typing import Any
 import polars as pl
 import yfinance as yf
 
+from heimdall._contracts import BatchResult, FetchRequest, FetchResult
 from heimdall._logging import get_logger
 from heimdall._provider import Capabilities, Provider, require_interval
 from heimdall._time import utcnow
-from heimdall.contracts import BatchResult, FetchRequest, FetchResult
 from heimdall.errors import HeimdallError, RequestError, UpstreamError
 from heimdall.schemas import OHLCV_BARS
 
