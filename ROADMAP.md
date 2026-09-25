@@ -64,3 +64,10 @@ Legend: `[x]` shipped · `[~]` partially built · `[ ]` planned
       `FredProvider.__init__`), giving vintages, metadata, and pagination.
 - [ ] **Packaging split** - break `heimdall-core` and each provider into separate
       distributions, if the boundaries hold up.
+
+
+## NEW PROVIDERS
+
+- [ ] **ADD SEC INSIDER TRADING PROVIDER**
+
+- [ ] **ADD OWN MIMIRD PROVIDER**
