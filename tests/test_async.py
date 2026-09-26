@@ -8,7 +8,7 @@ import respx
 
 import heimdall
 from heimdall._contracts import BatchResult, FetchResult
-from heimdall.providers._fred import FredProvider
+from heimdall.providers.fred import FredProvider
 
 _CSV = "observation_date,DGS10\n2024-01-02,3.95\n2024-01-03,3.91\n"
 _GDP_CSV = "observation_date,GDP\n2024-01-01,27000.0\n2024-04-01,27500.0\n"

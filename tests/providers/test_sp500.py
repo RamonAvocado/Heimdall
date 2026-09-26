@@ -6,7 +6,7 @@ import respx
 
 from heimdall._contracts import BatchResult, FetchRequest
 from heimdall.errors import RequestError, UpstreamError
-from heimdall.providers._sp500 import SP500Provider
+from heimdall.providers.sp500 import SP500Provider
 from heimdall.schemas import GENERIC_TABLE
 from heimdall.testing import ProviderContractTests
 

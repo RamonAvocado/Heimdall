@@ -9,7 +9,7 @@ import respx
 
 from heimdall._contracts import BatchResult, FetchRequest
 from heimdall.errors import RequestError, UpstreamError
-from heimdall.providers._fred import FredProvider
+from heimdall.providers.fred import FredProvider
 from heimdall.schemas import OBSERVATIONS
 from heimdall.testing import ProviderContractTests
 

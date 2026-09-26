@@ -9,7 +9,7 @@ import yfinance as yf
 
 from heimdall._contracts import BatchResult, FetchRequest
 from heimdall.errors import RequestError, UpstreamError
-from heimdall.providers._yfinance import YahooFinanceProvider
+from heimdall.providers.yfinance import YahooFinanceProvider
 from heimdall.schemas import OHLCV_BARS
 from heimdall.testing import ProviderContractTests
 

@@ -86,7 +86,7 @@ async def afetch(
 def _load_bundled() -> None:
     for name in _BUNDLED:
         try:
-            module = import_module(f"heimdall.providers._{name}")
+            module = import_module(f"heimdall.providers.{name}")
         except ImportError as exc:
             # TODO: Think about this
             # Its extra isn't installed. Remember why, so a later
