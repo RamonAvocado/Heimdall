@@ -1,8 +1,10 @@
 """Show how config / credentials reach a provider - and what happens without them.
 
-Config is plain typed keyword arguments on the provider's ``__init__``. The
-caller builds the values (here from the environment) and constructs the
-provider; the provider never reads ``os.environ`` itself.
+Config is plain typed keyword arguments on the provider's ``__init__``.
+``Provider.from_env()`` resolves them from ``HEIMDALL_<ID>_<PARAM>``
+environment variables (a ``.env`` file works too - see ``.env.example``) and
+raises :class:`~heimdall.errors.ConfigError` naming exactly what's missing -
+the provider itself never reads ``os.environ``.
 
 No network needed.
 
@@ -30,19 +32,15 @@ from heimdall.schemas import GENERIC_TABLE  # noqa: E402
 class TokenEcho(Provider):
     """Trivial provider that just proves it received its api_key."""
 
-    id = "token-echo"
+    id = "token_echo"
     capabilities = Capabilities(data_kinds=(GENERIC_TABLE.name,), requires_auth=True)
 
     def __init__(self, *, api_key: str, timeout: float = 30.0) -> None:
-        if not api_key:
-            raise ConfigError("token-echo: api_key must be a non-empty string")
         self._api_key = api_key
         self._timeout = timeout
 
     def _fetch(self, request: FetchRequest) -> FetchResult:
-        frame = pl.DataFrame(
-            {"resource": [request.resource], "api_key_seen": [self._api_key]}
-        )
+        frame = pl.DataFrame({"resource": [request.resource], "api_key_seen": [self._api_key]})
         return FetchResult(
             frame=frame,
             schema=GENERIC_TABLE,
@@ -52,14 +50,15 @@ class TokenEcho(Provider):
         )
 
 
-# 1. Construct without the key -> the provider's own ConfigError, raised early.
+# 1. Ask for it without the env var set -> ConfigError names exactly what to set.
+os.environ.pop("HEIMDALL_TOKEN_ECHO_API_KEY", None)
 try:
-    TokenEcho(api_key="")
+    TokenEcho.from_env()
 except ConfigError as exc:
-    print(f"bad config -> {exc}\n")
+    print(f"missing config -> {exc}\n")
 
-# 2. Supply it. The caller reads the environment and passes a typed argument.
-os.environ.setdefault("HEIMDALL_TOKENECHO_API_KEY", "sk-demo-123")
-heimdall.register(TokenEcho(api_key=os.environ["HEIMDALL_TOKENECHO_API_KEY"]))
+# 2. Set it (a .env file works too) and it resolves automatically.
+os.environ["HEIMDALL_TOKEN_ECHO_API_KEY"] = "sk-demo-123"
+heimdall.register(TokenEcho.from_env())
 
-show(heimdall.fetch("token-echo", "hello"))
+show(heimdall.fetch("token_echo", "hello"))

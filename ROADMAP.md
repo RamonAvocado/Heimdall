@@ -68,6 +68,8 @@ Legend: `[x]` shipped · `[~]` partially built · `[ ]` planned
 
 ## NEW PROVIDERS
 
-- [ ] **ADD SEC INSIDER TRADING PROVIDER**
+- [x] **ADD SEC INSIDER TRADING PROVIDER** - `sec_form4` (SEC EDGAR Form 4
+      filings, flattened to one row per transaction; not bundled, needs a
+      caller-supplied `user_agent`).
 
 - [ ] **ADD OWN MIMIRD PROVIDER**

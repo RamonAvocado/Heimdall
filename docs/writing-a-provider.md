@@ -9,8 +9,9 @@ the contract.
 Each bundled provider is one folder under `src/heimdall/providers/<name>/`
 (no leading underscore - that's reserved for the internal `_template`
 package), containing `provider.py` (the class) and an `__init__.py` that
-re-exports it and defines a `_register(registry)` hook. The canonical import
-is direct, by name:
+re-exports it and defines a `_register_lazy(registry)` hook (see "Register and
+use it" below for what that hook does). The canonical import is direct, by
+name:
 
 ```python
 from heimdall.providers.fred import FredProvider
@@ -70,9 +71,7 @@ result = heimdall.fetch("mine", "some-resource")
 ```
 
 For config/secrets, add typed keyword arguments to your provider's `__init__` -
-never read the environment inside the provider. `heimdall.register(MyProvider)`
-instantiates the class with no arguments, so those defaults apply; to override
-one, register a constructed instance:
+never read the environment inside the provider itself:
 
 ```python
 class MyProvider(Provider):
@@ -82,10 +81,49 @@ class MyProvider(Provider):
     def __init__(self, *, api_key: str, timeout: float = 30.0) -> None:
         self._api_key = api_key
         self._timeout = timeout
-
-
-heimdall.register(MyProvider(api_key=os.environ["MYPROVIDER_API_KEY"]))
 ```
+
+`heimdall.register(MyProvider)` instantiates the class with no arguments, so a
+provider with everything defaulted (like `fred`) works as-is. A provider with
+a *required* argument (no default - like `api_key` above) needs one of:
+
+- **Resolve it from the environment** with `Provider.from_env()`, which every
+  provider gets for free. It reads `HEIMDALL_<ID>_<PARAM>` (upper-cased) for
+  each `__init__` parameter with no default - `api_key` on a provider whose
+  `id` is `"mine"` becomes `HEIMDALL_MINE_API_KEY`. A `.env` file in the
+  working directory is loaded once at `import heimdall` (real env vars always
+  win over it - see `.env.example` at the repo root). Missing config raises
+  `heimdall.errors.ConfigError` naming exactly which variable(s) to set:
+
+  ```python
+  heimdall.register(MyProvider.from_env())
+  # or, for a bundled provider that already registered lazily (see below):
+  heimdall.fetch("mine", "some-resource")  # raises ConfigError if unset
+  ```
+
+- **Construct it yourself**, bypassing the environment entirely:
+
+  ```python
+  heimdall.register(MyProvider(api_key="..."))
+  ```
+
+For a *bundled* provider with required config, register it lazily instead of
+eagerly, so `import heimdall` never crashes for lack of config - the
+`ConfigError` (if any) surfaces the first time the provider is actually
+fetched from, not at import time:
+
+```python
+# your_package/__init__.py
+def _register_lazy(registry: object) -> None:
+    from heimdall._registry import ProviderRegistry
+
+    assert isinstance(registry, ProviderRegistry)
+    if MyProvider.id not in registry.list():
+        registry.register_lazy(MyProvider.id, MyProvider.from_env)
+```
+
+(add `MyProvider`'s id to `_BUNDLED` in `src/heimdall/__init__.py`, and list
+its required env var(s) in `.env.example`, if it ships with Heimdall itself.)
 
 ## Prove it conforms
 

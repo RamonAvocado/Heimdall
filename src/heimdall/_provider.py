@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
+import os
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -10,7 +12,7 @@ from datetime import datetime
 from typing import Any, ClassVar
 
 from heimdall._contracts import BatchResult, FetchRequest, FetchResult
-from heimdall.errors import HeimdallError, RequestError
+from heimdall.errors import ConfigError, HeimdallError, RequestError
 
 __all__ = ["Capabilities", "Provider", "require_interval"]
 
@@ -139,6 +141,43 @@ class Provider(ABC):
     def _fetch(self, request: FetchRequest) -> FetchResult:
         """Fetch data for ``request`` and return a :class:`FetchResult`."""
         raise NotImplementedError
+
+    @classmethod
+    def from_env(cls, **overrides: Any) -> Provider:
+        """Build an instance, resolving required ``__init__`` config from the
+        environment (or a loaded ``.env`` file) via ``HEIMDALL_<id>_<param>``
+        env vars (e.g. ``user_agent`` on ``sec_form4`` -> ``HEIMDALL_SEC_FORM4_USER_AGENT``).
+        ``overrides`` wins over the environment. Raises
+        :class:`~heimdall.errors.ConfigError` naming exactly what's missing.
+
+        # ponytail: env values are always strings; a provider needing a
+        # required non-str param must cast in its own __init__ or pass it via
+        # `overrides` - add real type coercion here if that's ever needed.
+        """
+        params = inspect.signature(cls.__init__).parameters
+        kwargs: dict[str, Any] = {}
+        missing: list[tuple[str, str]] = []
+        for name, param in params.items():
+            if name == "self":
+                continue
+            if name in overrides:
+                kwargs[name] = overrides[name]
+                continue
+            env_name = f"HEIMDALL_{cls.id.upper()}_{name.upper()}"
+            value = os.environ.get(env_name)
+            if value is not None:
+                kwargs[name] = value
+            elif param.default is inspect.Parameter.empty:
+                missing.append((name, env_name))
+        if missing:
+            detail = "\n".join(f"  - {name}: set {env_name}=..." for name, env_name in missing)
+            names = ", ".join(name for name, _ in missing)
+            raise ConfigError(
+                f"{cls.id!r} needs configuration to construct - set the following "
+                f"environment variable(s) (a .env file works too), or construct it "
+                f"yourself, e.g. {cls.__name__}({names}=...):\n{detail}"
+            )
+        return cls(**kwargs)
 
 
 def require_interval(request: FetchRequest, capabilities: Capabilities, *, default: str) -> str:

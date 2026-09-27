@@ -8,6 +8,7 @@ calls it automatically yet.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from importlib.metadata import entry_points
 
 from heimdall._logging import get_logger
@@ -26,7 +27,14 @@ class ProviderRegistry:
 
     def __init__(self) -> None:
         self._providers: dict[str, Provider] = {}
-        #: provider id -> why it is known but not usable (e.g. its extra failed : to import). Consulted by :meth:`get` to give an actionable error.
+        #: provider id -> a factory (typically ``SomeProvider.from_env``)
+        #: called on first :meth:`get`. Lets a provider that needs config sit
+        #: in the registry without crashing at registration time - the real
+        #: :class:`~heimdall.errors.ConfigError` (if any) surfaces exactly
+        #: when someone actually asks for it.
+        self._factories: dict[str, Callable[[], Provider]] = {}
+        #: provider id -> why it is known but not usable (e.g. its extra
+        #: failed to import). Consulted by :meth:`get` to give an actionable error.
         self._unavailable: dict[str, str] = {}
 
     def register(
@@ -50,12 +58,24 @@ class ProviderRegistry:
             raise ProviderError(f"expected a Provider instance or subclass, got {provider!r}")
 
         pid = instance.id
-        if pid in self._providers and not replace:
+        if (pid in self._providers or pid in self._factories) and not replace:
             raise ProviderError(f"provider id {pid!r} is already registered (pass replace=True)")
         self._providers[pid] = instance
+        self._factories.pop(pid, None)
         self._unavailable.pop(pid, None)
         _log.debug("provider registered", provider_id=pid, cls=type(instance).__name__)
         return instance
+
+    def register_lazy(self, provider_id: str, factory: Callable[[], Provider]) -> None:
+        """Register a provider built on first use via ``factory()`` (typically
+        ``SomeProvider.from_env``). ``get(provider_id)`` calls it, caches the
+        result, and lets any :class:`~heimdall.errors.ConfigError` propagate
+        as-is - that is the point: missing config surfaces at first real use,
+        not at import time.
+        """
+        if provider_id in self._providers or provider_id in self._factories:
+            raise ProviderError(f"provider id {provider_id!r} is already registered")
+        self._factories[provider_id] = factory
 
     def mark_unavailable(self, provider_id: str, reason: str) -> None:
         """Record that ``provider_id`` is known but cannot be used (its optional
@@ -66,10 +86,15 @@ class ProviderRegistry:
             self._unavailable[provider_id] = reason
 
     def get(self, provider_id: str) -> Provider:
-        try:
+        if provider_id in self._providers:
             return self._providers[provider_id]
-        except KeyError:
-            raise ProviderNotFound(self._not_found_message(provider_id)) from None
+        factory = self._factories.get(provider_id)
+        if factory is not None:
+            instance = factory()  # a ConfigError here propagates as-is
+            self._providers[provider_id] = instance
+            del self._factories[provider_id]
+            return instance
+        raise ProviderNotFound(self._not_found_message(provider_id))
 
     def _not_found_message(self, provider_id: str) -> str:
         if provider_id in self._unavailable:
@@ -85,15 +110,14 @@ class ProviderRegistry:
                 "sure `import heimdall` ran (it self-registers them); if this is your own "
                 "ProviderRegistry(), call .register(...) on it first."
             )
-        return (
-            f"no provider registered for id {provider_id!r}; registered: {sorted(self._providers)}"
-        )
+        return f"no provider registered for id {provider_id!r}; registered: {self.list()}"
 
     def list(self) -> list[str]:
-        return sorted(self._providers)
+        return sorted(set(self._providers) | set(self._factories))
 
     def unregister(self, provider_id: str) -> None:
         self._providers.pop(provider_id, None)
+        self._factories.pop(provider_id, None)
 
     def load_entry_points(self, group: str = ENTRY_POINT_GROUP) -> None:
         """Discover and register providers advertised via ``importlib.metadata``

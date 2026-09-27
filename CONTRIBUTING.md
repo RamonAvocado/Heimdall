@@ -19,10 +19,13 @@ uv run pytest -m network            # hits real FRED / Yahoo; run before release
 ## Adding a provider
 
 First-party providers live under `src/heimdall/providers/<name>/` and are
-registered by a module-level `_register(registry)` hook (see the `fred` and
-`yfinance` packages). Their client library goes in a matching
-`[project.optional-dependencies]` extra so `import heimdall` still works without
-it.
+registered by a module-level `_register_lazy(registry)` hook calling
+`registry.register_lazy(YourProvider.id, YourProvider.from_env)` (see the
+`fred` and `yfinance` packages). Their client library goes in a matching
+`[project.optional-dependencies]` extra so `import heimdall` still works
+without it. A provider with required config (e.g. `sec_form4`'s
+`user_agent`) resolves it from `HEIMDALL_<ID>_<PARAM>` env vars via
+`from_env()` - see the "config/secrets" section of `docs/writing-a-provider.md`.
 
 Every provider must:
 

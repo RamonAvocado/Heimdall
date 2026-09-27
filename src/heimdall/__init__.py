@@ -18,6 +18,7 @@ from importlib import import_module
 from typing import Any
 
 from heimdall import errors, schemas
+from heimdall._config import load_dotenv_once
 from heimdall._contracts import BatchResult, FetchRequest, FetchResult
 from heimdall._provider import Capabilities, Provider, require_interval
 from heimdall._registry import get_provider, list_providers, register, registry
@@ -45,9 +46,11 @@ __all__ = [
     "schemas",
 ]
 
-# Providers bundled with Heimdall. Each self-registers via a module-level
-# ``_register(registry)`` hook, but only if its optional dependency is installed.
-_BUNDLED = ("fred", "sp500", "yfinance")
+# Providers bundled with Heimdall. Each self-registers (lazily - see
+# ``_register_lazy`` / ``Provider.from_env``) via a module-level
+# ``_register_lazy(registry)`` hook, but only if its optional dependency is
+# installed.
+_BUNDLED = ("fred", "sp500", "yfinance", "sec_form4")
 
 
 def fetch(
@@ -93,9 +96,10 @@ def _load_bundled() -> None:
             # ``heimdall.fetch(name, ...)`` can say so instead of failing blank.
             registry.mark_unavailable(name, str(exc))
             continue
-        hook = getattr(module, "_register", None)
+        hook = getattr(module, "_register_lazy", None)
         if callable(hook):
             hook(registry)
 
 
+load_dotenv_once()
 _load_bundled()

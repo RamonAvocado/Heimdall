@@ -548,6 +548,9 @@ all = [
 fred = [
     { name = "httpx" },
 ]
+sec-form4 = [
+    { name = "httpx" },
+]
 sp500 = [
     { name = "httpx" },
 ]
@@ -572,6 +575,7 @@ dev = [
 requires-dist = [
     { name = "httpx", marker = "extra == 'all'", specifier = ">=0.27" },
     { name = "httpx", marker = "extra == 'fred'", specifier = ">=0.27" },
+    { name = "httpx", marker = "extra == 'sec-form4'", specifier = ">=0.27" },
     { name = "httpx", marker = "extra == 'sp500'", specifier = ">=0.27" },
     { name = "polars", specifier = ">=1.44.1" },
     { name = "pyarrow", marker = "extra == 'all'", specifier = ">=15" },
@@ -581,7 +585,7 @@ requires-dist = [
     { name = "yfinance", marker = "extra == 'all'", specifier = ">=0.2.40" },
     { name = "yfinance", marker = "extra == 'yfinance'", specifier = ">=0.2.40" },
 ]
-provides-extras = ["fred", "sp500", "yfinance", "testing", "all"]
+provides-extras = ["fred", "sp500", "yfinance", "sec-form4", "testing", "all"]
 
 [package.metadata.requires-dev]
 dev = [
