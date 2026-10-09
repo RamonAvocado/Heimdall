@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from importlib import import_module
+from importlib.metadata import version
 from typing import Any
 
 from heimdall import errors, schemas
@@ -24,7 +25,7 @@ from heimdall._provider import Capabilities, Provider, require_interval
 from heimdall._registry import get_provider, list_providers, register, registry
 from heimdall._time import utcnow
 
-__version__ = "0.5.0"
+__version__ = version("heimdall-mimird")
 
 # Only what a caller or a provider author actually touches. Schema types live in
 # ``heimdall.schemas``; the registry object and ``get_provider`` stay importable
