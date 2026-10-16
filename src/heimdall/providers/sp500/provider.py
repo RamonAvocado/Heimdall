@@ -1,37 +1,40 @@
-"""Fetch the current S&P 500 constituent list.
-
-Source: the community-maintained CSV mirror at
-github.com/datasets/s-and-p-500-companies. This is a snapshot of "who's in
-the index today", not point-in-time history, and it isn't parameterized by
-ticker or date - the whole list is the resource, hence resource="constituents"
-is the only accepted value.
-"""
+"""`sp500`: the current S&P 500 constituent list."""
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import datetime
 from io import StringIO
+from typing import Annotated
 
 import httpx
 import polars as pl
 
 from heimdall._contracts import BatchResult, FetchRequest, FetchResult
-from heimdall._logging import get_logger
-from heimdall._provider import Capabilities, Provider
 from heimdall._time import utcnow
 from heimdall.errors import RequestError, UpstreamError
+from heimdall.providers._base import Capabilities, Provider, ProviderMetadata
 from heimdall.schemas import GENERIC_TABLE
 
 _CSV_URL = (
     "https://raw.githubusercontent.com/datasets/s-and-p-500-companies/main/data/constituents.csv"
 )
 _RESOURCE = "constituents"
-_log = get_logger("providers.sp500")
 
 
 class SP500Provider(Provider):
-    id = "sp500"
+    """Who is in the S&P 500 today: one row per constituent, with its sector.
+
+    Source: the community-maintained CSV mirror at
+    github.com/datasets/s-and-p-500-companies.  A snapshot, not point-in-time
+    history, and not parameterized by ticker or date: the whole list is the
+    resource, so `"constituents"` is the only accepted value (and the default).
+    """
+
+    metadata = ProviderMetadata(
+        name="sp500",
+        description="The current S&P 500 constituent list.",
+    )
     capabilities = Capabilities(
         data_kinds=(GENERIC_TABLE.name,),
         intervals=(),
@@ -39,7 +42,7 @@ class SP500Provider(Provider):
         requires_auth=False,
     )
 
-    def __init__(self, *, timeout: float = 30.0) -> None:
+    def __init__(self, *, timeout: Annotated[float, "HTTP timeout in seconds."] = 30.0) -> None:
         self._timeout = timeout
 
     def fetch(
@@ -73,8 +76,8 @@ class SP500Provider(Provider):
         )
         before = frame.height
         frame = frame.drop_nulls(subset=["symbol"])
-        if (dropped := before - frame.height):
-            _log.warning("dropped rows with null symbol", dropped=dropped)
+        if dropped := before - frame.height:
+            self._log.warning("dropped rows with null symbol", dropped=dropped)
 
         if frame.is_empty():
             raise RequestError("S&P 500 constituents source returned no rows")

@@ -36,7 +36,7 @@ def show(result: FetchResult, *, rows: int = 10) -> None:
     try:
         result.schema.validate(frame)
         print("validate   : OK")
-    except Exception as exc:  # noqa: BLE001 - sandbox: surface whatever went wrong
+    except Exception as exc:  # sandbox: surface whatever went wrong
         print(f"validate   : FAIL - {exc}")
     print()
     with pl.Config(tbl_rows=rows, tbl_width_chars=120):

@@ -5,8 +5,8 @@ import pytest
 import respx
 
 from heimdall._contracts import FetchRequest
-from heimdall._registry import ProviderRegistry
 from heimdall.errors import ConfigError, RequestError, UpstreamError
+from heimdall.providers import ProviderRegistry
 from heimdall.providers.sec_form4 import SecForm4Provider
 from heimdall.providers.sec_form4.provider import FORM4_TRANSACTIONS
 

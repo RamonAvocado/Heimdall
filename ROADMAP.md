@@ -27,15 +27,14 @@ Legend: `[x]` shipped · `[~]` partially built · `[ ]` planned
 
 - [ ] **Conformance kit polish** - recorded-fixture helpers so third parties can
       write offline contract tests without hand-rolling mocks.
-- [ ] **Docs** - expand `docs/writing-a-provider.md` with a schema-authoring
+- [ ] **Docs** - expand the provider guide in `CONTRIBUTING.md` with a schema-authoring
       section.
 
 ## Candidate ideas (evaluated, not yet scheduled)
 
-- [~] **Entry-point plugin discovery** - `ProviderRegistry.load_entry_points()`
-  already works; wire a documented `heimdall.providers` entry-point group and add
-  a `@heimdall.provider` decorator so `pip install heimdall-stripe` auto-registers
-  with the core package. Single biggest driver of ecosystem growth (cf. dlt,
+- [~] **Entry-point plugin discovery** - the documented `heimdall.providers`
+  entry-point group is scanned on first registry use, so `pip install
+  heimdall-stripe` auto-registers; a `@heimdall.provider` decorator is still open. Single biggest driver of ecosystem growth (cf. dlt,
   pytest, SQLAlchemy dialects).
 - [~] **Config & credentials layer** - providers take typed keyword args on their
   own `__init__`. Add `.env` loading and a pluggable secret-source hook

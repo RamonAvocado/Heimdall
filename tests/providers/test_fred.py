@@ -36,9 +36,7 @@ def test_fetch_parses_and_normalizes() -> None:
 @respx.mock
 def test_date_range_filter() -> None:
     respx.get(_URL).mock(return_value=httpx.Response(200, text=_CSV))
-    result = FredProvider().fetch(
-        "DGS10", start=datetime(2024, 1, 3), end=datetime(2024, 1, 4)
-    )
+    result = FredProvider().fetch("DGS10", start=datetime(2024, 1, 3), end=datetime(2024, 1, 4))
     assert result.frame["timestamp"].to_list() == [datetime(2024, 1, 3)]
 
 

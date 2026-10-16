@@ -1,4 +1,4 @@
-"""Template provider - not bundled, not registered. See ``provider.py``."""
+"""Template provider - not bundled, not registered. See `provider.py`."""
 
 from __future__ import annotations
 

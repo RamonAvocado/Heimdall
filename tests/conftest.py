@@ -8,14 +8,14 @@ import polars as pl
 import pytest
 
 from heimdall._contracts import FetchRequest, FetchResult
-from heimdall._provider import Capabilities, Provider
+from heimdall.providers import Capabilities, Provider, ProviderMetadata
 from heimdall.schemas import OBSERVATIONS
 
 
 class DummyProvider(Provider):
     """A minimal in-memory provider used across the test suite."""
 
-    id = "dummy"
+    metadata = ProviderMetadata(name="dummy")
     capabilities = Capabilities(data_kinds=(OBSERVATIONS.name,), intervals=("1d",))
 
     def _fetch(self, request: FetchRequest) -> FetchResult:
@@ -42,6 +42,6 @@ def dummy_provider() -> DummyProvider:
 
 @pytest.fixture
 def fresh_registry():
-    from heimdall._registry import ProviderRegistry
+    from heimdall.providers import ProviderRegistry
 
     return ProviderRegistry()

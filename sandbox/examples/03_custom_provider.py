@@ -16,21 +16,27 @@ import polars as pl
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
-from sandbox._helpers import show  # noqa: E402
+from sandbox._helpers import show
 
-import heimdall  # noqa: E402
-from heimdall import Capabilities, FetchRequest, FetchResult, Provider  # noqa: E402
-from heimdall.schemas import OBSERVATIONS  # noqa: E402
-from heimdall.testing import assert_provider_conformance  # noqa: E402
+import heimdall
+from heimdall import (
+    Capabilities,
+    FetchRequest,
+    FetchResult,
+    Provider,
+    ProviderMetadata,
+)
+from heimdall.schemas import OBSERVATIONS
+from heimdall.testing import assert_provider_conformance
 
 
 class SineProvider(Provider):
     """Emits a deterministic sine wave as `timeseries.observations`."""
 
-    id = "sine"
+    metadata = ProviderMetadata(name="sine")
     capabilities = Capabilities(data_kinds=(OBSERVATIONS.name,))
 
-    def fetch(self, request: FetchRequest) -> FetchResult:
+    def _fetch(self, request: FetchRequest) -> FetchResult:
         n = int(request.params.get("n", 30))
         base = datetime(2024, 1, 1)
         frame = pl.DataFrame(

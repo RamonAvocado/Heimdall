@@ -1,7 +1,7 @@
 """Exception hierarchy for Heimdall.
 
-Providers should raise these, never bare ``ValueError`` / ``KeyError``. The
-conformance kit (:mod:`heimdall.testing`) checks for this.
+Providers should raise these, never bare `ValueError` / `KeyError`. The
+conformance kit (`heimdall.testing`) checks for this.
 """
 
 from __future__ import annotations
@@ -24,11 +24,11 @@ class ConfigError(ProviderError):
 
 
 class RequestError(HeimdallError):
-    """The :class:`~heimdall._contracts.FetchRequest` is invalid for this provider."""
+    """The `FetchRequest` is invalid for this provider."""
 
 
 class SchemaError(HeimdallError):
-    """A frame does not match the :class:`~heimdall._contracts.SchemaSpec` it claims."""
+    """A frame does not match the `SchemaSpec` it claims."""
 
 
 class UpstreamError(HeimdallError):

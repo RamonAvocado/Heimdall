@@ -1,10 +1,10 @@
 """Show how config / credentials reach a provider - and what happens without them.
 
-Config is plain typed keyword arguments on the provider's ``__init__``.
-``Provider.from_env()`` resolves them from ``HEIMDALL_<ID>_<PARAM>``
-environment variables (a ``.env`` file works too - see ``.env.example``) and
-raises :class:`~heimdall.errors.ConfigError` naming exactly what's missing -
-the provider itself never reads ``os.environ``.
+Config is plain typed keyword arguments on the provider's `__init__`.
+`Provider.from_env()` resolves them from `HEIMDALL_<ID>_<PARAM>`
+environment variables (a `.env` file works too - see `.env.example`) and
+raises `ConfigError` naming exactly what's missing -
+the provider itself never reads `os.environ`.
 
 No network needed.
 
@@ -21,18 +21,24 @@ import polars as pl
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
-from sandbox._helpers import show  # noqa: E402
+from sandbox._helpers import show
 
-import heimdall  # noqa: E402
-from heimdall import Capabilities, FetchRequest, FetchResult, Provider  # noqa: E402
-from heimdall.errors import ConfigError  # noqa: E402
-from heimdall.schemas import GENERIC_TABLE  # noqa: E402
+import heimdall
+from heimdall import (
+    Capabilities,
+    FetchRequest,
+    FetchResult,
+    Provider,
+    ProviderMetadata,
+)
+from heimdall.errors import ConfigError
+from heimdall.schemas import GENERIC_TABLE
 
 
 class TokenEcho(Provider):
     """Trivial provider that just proves it received its api_key."""
 
-    id = "token_echo"
+    metadata = ProviderMetadata(name="token_echo")
     capabilities = Capabilities(data_kinds=(GENERIC_TABLE.name,), requires_auth=True)
 
     def __init__(self, *, api_key: str, timeout: float = 30.0) -> None:

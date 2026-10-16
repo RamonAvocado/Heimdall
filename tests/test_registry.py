@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from heimdall._provider import Capabilities, Provider
 from heimdall.errors import ConfigError, ProviderError, ProviderNotFound
+from heimdall.providers import Capabilities, Provider, ProviderMetadata
 
 
 class _P(Provider):
-    id = "p"
+    metadata = ProviderMetadata(name="p")
     capabilities = Capabilities(data_kinds=("table.generic",))
 
     def _fetch(self, request):  # pragma: no cover - not exercised here
@@ -15,7 +15,7 @@ class _P(Provider):
 
 
 class _Configurable(Provider):
-    id = "cfg"
+    metadata = ProviderMetadata(name="cfg")
     capabilities = Capabilities(data_kinds=("table.generic",))
 
     def __init__(self, *, timeout: float = 30.0) -> None:
@@ -26,7 +26,7 @@ class _Configurable(Provider):
 
 
 class _NeedsToken(Provider):
-    id = "needs_token"
+    metadata = ProviderMetadata(name="needs_token")
     capabilities = Capabilities(data_kinds=("table.generic",))
 
     def __init__(self, *, token: str) -> None:
@@ -140,3 +140,40 @@ def test_eager_register_rejects_id_already_lazily_registered(fresh_registry) -> 
     fresh_registry.register(_P, replace=True)  # replace clears the pending factory
     assert fresh_registry.get("p") is not None
     assert "p" not in fresh_registry._factories
+
+
+def test_entry_points_load_once_on_first_query(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    import heimdall.providers._registry as reg
+
+    def _boom():
+        raise ImportError("broken plugin")
+
+    calls = []
+
+    def fake_entry_points(group):
+        calls.append(group)
+        return [
+            SimpleNamespace(name="p", load=lambda: _P),
+            SimpleNamespace(name="bad", load=_boom),
+        ]
+
+    monkeypatch.setattr(reg, "entry_points", fake_entry_points)
+    registry = reg.ProviderRegistry(entry_point_group="test.group")
+    assert calls == []  # nothing scanned until queried
+    assert registry.list() == ["p"]
+    assert registry.get("p").id == "p"
+    assert calls == ["test.group"]  # scanned once
+    with pytest.raises(ProviderNotFound, match="broken plugin"):
+        registry.get("bad")
+
+
+def test_metadata_is_required() -> None:
+    with pytest.raises(TypeError, match="metadata"):
+
+        class _NoMeta(Provider):
+            capabilities = Capabilities(data_kinds=("table.generic",))
+
+            def _fetch(self, request):  # pragma: no cover
+                raise NotImplementedError

@@ -1,33 +1,37 @@
-"""Fetch economic series from FRED.
-
-This uses the public ``fredgraph.csv`` download endpoint, which needs no API
-key. The official ``api.stlouisfed.org`` JSON API (vintages, metadata,
-pagination) needs ``FRED_API_KEY`` and is the eventual upgrade path - set
-``requires_auth=True`` in :attr:`FredProvider.capabilities` and add an
-``api_key`` keyword to ``__init__`` when that lands.
-"""
+"""`fred`: economic series from FRED's public CSV download."""
 
 from __future__ import annotations
 
 from datetime import datetime
 from io import StringIO
+from typing import Annotated
 
 import httpx
 import polars as pl
 
 from heimdall._contracts import FetchRequest, FetchResult
-from heimdall._logging import get_logger
-from heimdall._provider import Capabilities, Provider
 from heimdall._time import utcnow
 from heimdall.errors import RequestError, UpstreamError
+from heimdall.providers._base import Capabilities, Provider, ProviderMetadata
 from heimdall.schemas import OBSERVATIONS
 
 _CSV_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv"
-_log = get_logger("providers.fred")
 
 
 class FredProvider(Provider):
-    id = "fred"
+    """Economic series (`DGS10`, `GDP`, ...) from FRED, one row per observation.
+
+    Uses the public `fredgraph.csv` download endpoint, which needs no API key.
+    The official `api.stlouisfed.org` JSON API (vintages, metadata, pagination)
+    needs `FRED_API_KEY` and is the eventual upgrade path: set
+    `requires_auth=True` in `capabilities` and add an `api_key` keyword to
+    `__init__` when that lands.
+    """
+
+    metadata = ProviderMetadata(
+        name="fred",
+        description="Economic series from FRED (Federal Reserve Economic Data).",
+    )
     capabilities = Capabilities(
         data_kinds=(OBSERVATIONS.name,),
         intervals=(),
@@ -35,7 +39,7 @@ class FredProvider(Provider):
         requires_auth=False,
     )
 
-    def __init__(self, *, timeout: float = 30.0) -> None:
+    def __init__(self, *, timeout: Annotated[float, "HTTP timeout in seconds."] = 30.0) -> None:
         self._timeout = timeout
 
     def _fetch(self, request: FetchRequest) -> FetchResult:

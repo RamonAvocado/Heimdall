@@ -1,36 +1,19 @@
-"""Fetch SEC Form 4 (insider transaction) filings.
-
-Two ways to scope a request via ``FetchRequest.params`` (``resource`` is the
-issuer's ticker):
-
-- ``{"limit": n}`` - the ``n`` most recent Form 4 filings for the ticker.
-- ``{"owner": "Newstead Jennifer"}`` (exact match) - every filing by that
-  reporting owner, for the ticker.
-- Both together - the ``n`` most recent filings by that owner.
-
-This provider only fetches and flattens filings into rows; it does not
-interpret transaction codes (e.g. that "F" is forced tax withholding, not a
-discretionary sale) - that judgment belongs to the consumer.
-
-Talks to SEC EDGAR's public JSON/XML endpoints. No API key, but SEC requires a
-real, contactable ``User-Agent`` (pass your own via the constructor - there is
-no safe shared default) and rate-limits fair use to ~10 req/s, enforced here
-with a process-wide lock.
-"""
+"""`sec_form4`: SEC Form 4 (insider transaction) filings from EDGAR."""
 
 from __future__ import annotations
 
 import threading
 import time
+from typing import Annotated
 from xml.etree import ElementTree
 
 import httpx
 import polars as pl
 
 from heimdall._contracts import ColumnSpec, FetchRequest, FetchResult, SchemaSpec
-from heimdall._provider import Capabilities, Provider
 from heimdall._time import utcnow
 from heimdall.errors import RequestError, UpstreamError
+from heimdall.providers._base import Capabilities, Provider, ProviderMetadata
 
 FORM4_TRANSACTIONS = SchemaSpec(
     name="sec.form4_transactions",
@@ -62,10 +45,40 @@ _last_call = 0.0
 
 
 class SecForm4Provider(Provider):
-    id = "sec_form4"
+    """Insider transactions for a ticker, one row per Form 4 transaction line.
+
+    Two ways to scope a request via `FetchRequest.params` (`resource` is the
+    issuer's ticker):
+
+    - `{"limit": n}`: the `n` most recent Form 4 filings for the ticker.
+    - `{"owner": "Newstead Jennifer"}` (exact match): every filing by that
+      reporting owner, for the ticker.
+    - Both together: the `n` most recent filings by that owner.
+
+    It only fetches and flattens filings into rows; it does not interpret
+    transaction codes (e.g. that "F" is forced tax withholding, not a
+    discretionary sale): that judgment belongs to the consumer.
+
+    Talks to SEC EDGAR's public JSON/XML endpoints.  No API key, but SEC
+    requires a real, contactable `User-Agent` (there is no safe shared
+    default) and rate-limits fair use to ~10 req/s, enforced here with a
+    process-wide lock.
+    """
+
+    metadata = ProviderMetadata(
+        name="sec_form4",
+        description="SEC Form 4 insider transactions, from EDGAR.",
+    )
     capabilities = Capabilities(data_kinds=(FORM4_TRANSACTIONS.name,), requires_auth=False)
 
-    def __init__(self, *, user_agent: str, timeout: float = 30.0) -> None:
+    def __init__(
+        self,
+        *,
+        user_agent: Annotated[
+            str, 'Contact SEC requires on every request, e.g. "Name you@mail.com".'
+        ],
+        timeout: Annotated[float, "HTTP timeout in seconds."] = 30.0,
+    ) -> None:
         self._user_agent = user_agent
         self._timeout = timeout
 
@@ -180,7 +193,7 @@ class SecForm4Provider(Provider):
 
 
 def _val(el: ElementTree.Element, tag: str) -> str | None:
-    """Most Form 4 leaf fields are ``<tag><value>...</value></tag>``; a missing
+    """Most Form 4 leaf fields are `<tag><value>...</value></tag>`; a missing
     value (e.g. no price on a grant) leaves whitespace, not "" - strip it.
     """
     for candidate in (el.findtext(f"{tag}/value"), el.findtext(tag)):

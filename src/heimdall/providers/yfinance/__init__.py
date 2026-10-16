@@ -1,4 +1,4 @@
-"""Yahoo Finance OHLCV provider."""
+"""`yfinance`: OHLCV bars from Yahoo Finance."""
 
 from __future__ import annotations
 
@@ -8,11 +8,11 @@ __all__ = ["YahooFinanceProvider", "_register_lazy"]
 
 
 def _register_lazy(registry: object) -> None:
-    """Hook called by :func:`heimdall._load_bundled` when the ``yfinance``
-    extra is installed. Resolves config (none required today) from the
+    """Hook called by `heimdall._load_bundled` when the `yfinance` extra is
+    installed.  Resolves config (none required today) from the
     environment on first use, not at import time.
     """
-    from heimdall._registry import ProviderRegistry
+    from heimdall.providers._registry import ProviderRegistry
 
     assert isinstance(registry, ProviderRegistry)
     if YahooFinanceProvider.id not in registry.list():

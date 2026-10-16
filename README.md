@@ -54,14 +54,26 @@ failing blank.
 
 ## Writing a provider
 
-Subclass `heimdall.Provider`, set `id` + `capabilities`, implement `_fetch`
-(one resource - batch, async, and failure collection come for free). See
-[docs/writing-a-provider.md](docs/writing-a-provider.md) for a full worked
-example, and run `heimdall.testing.assert_provider_conformance(...)` to check it
-against the contract.
+Subclass `heimdall.Provider`, set `metadata` + `capabilities`, implement
+`_fetch` (one resource - batch, async, and failure collection come for free).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for a full worked example, and run
+`heimdall.testing.assert_provider_conformance(...)` to check it against the
+contract. Third-party packages register through the `heimdall.providers`
+entry-point group, picked up automatically on first use.
+
+## Explore the catalog
+
+`heimdall.catalog()` describes every bundled provider (whose extra is installed)
+as JSON-safe data: id, description, author, source, `__init__` parameters and
+capabilities. The Mimird docs are built from it, and an MCP server can call it
+on the installed package:
+
+```bash
+uv run --extra all python -m heimdall > catalog.json
+```
 
 ## Status
 
-Early. The provider contract and the two bundled providers are usable today. The
-ingestion/storage layer, entry-point plugin discovery, and retry/rate-limit
-middleware are on the [roadmap](ROADMAP.md).
+Early. The provider contract and the bundled providers are usable today. The
+ingestion/storage layer and retry/rate-limit middleware are on the
+[roadmap](ROADMAP.md).

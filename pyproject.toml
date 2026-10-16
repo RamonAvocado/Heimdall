@@ -1,6 +1,6 @@
 [project]
 name = "heimdall-mimird"
-version = "0.5.1"
+version = "0.6.0"
 description = "A data-provider SDK"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -34,12 +34,20 @@ build-backend = "hatchling.build"
 packages = ["src/heimdall"]
 
 [tool.ruff]
+target-version = "py311"
 line-length = 100
 src = ["src", "tests", "sandbox"]
 extend-exclude = ["sandbox/scratch"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM"]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "C4", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "RUF022"]
+
+[tool.ruff.format]
+quote-style = "double"
+docstring-code-format = true
 
 [tool.mypy]
 python_version = "3.11"
@@ -55,6 +63,15 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "-ra --strict-markers --cov=heimdall --cov-report=term-missing"
 markers = [
     "network: test hits a real external service (deselect with '-m \"not network\"')",
 ]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true

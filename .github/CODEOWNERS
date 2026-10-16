@@ -1,0 +1,3 @@
+# Every PR needs a maintainer's review. Add per-folder owners as trusted
+# maintainers join, e.g. `src/heimdall/providers/fred/ @someone`.
+* @RamonAvocado

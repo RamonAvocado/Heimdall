@@ -1,4 +1,4 @@
-"""S&P 500 constituents provider."""
+"""`sp500`: the current S&P 500 constituent list."""
 
 from __future__ import annotations
 
@@ -8,11 +8,11 @@ __all__ = ["SP500Provider", "_register_lazy"]
 
 
 def _register_lazy(registry: object) -> None:
-    """Hook called by :func:`heimdall._load_bundled` when the ``sp500`` extra
-    is installed. Resolves config (none required today) from the environment
-    on first use, not at import time.
+    """Hook called by `heimdall._load_bundled` when the `sp500` extra is
+    installed.  Resolves config (none required today) from the environment on
+    first use, not at import time.
     """
-    from heimdall._registry import ProviderRegistry
+    from heimdall.providers._registry import ProviderRegistry
 
     assert isinstance(registry, ProviderRegistry)
     if SP500Provider.id not in registry.list():

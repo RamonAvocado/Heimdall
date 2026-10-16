@@ -1,11 +1,11 @@
 """A reusable conformance suite for providers.
 
 Any provider package - first- or third-party - can prove it honours the
-contract by either calling :func:`assert_provider_conformance` directly or
-subclassing :class:`ProviderContractTests` in its pytest suite.
+contract by either calling `assert_provider_conformance` directly or
+subclassing `ProviderContractTests` in its pytest suite.
 
 This module needs pytest. It is not pulled in by the base install; get it with
-``pip install heimdall-mimird[testing]``.
+`pip install heimdall-mimird[testing]`.
 """
 
 from __future__ import annotations
@@ -23,15 +23,15 @@ except ModuleNotFoundError as exc:  # pragma: no cover - exercised only without 
     ) from exc
 
 from heimdall._contracts import BatchResult, FetchRequest, FetchResult
-from heimdall._provider import Capabilities, Provider
 from heimdall.errors import RequestError
+from heimdall.providers._base import Capabilities, Provider
 
-__all__ = ["assert_provider_conformance", "ProviderContractTests"]
+__all__ = ["ProviderContractTests", "assert_provider_conformance"]
 
 
 def assert_provider_conformance(provider: Provider, sample: FetchRequest) -> FetchResult:
-    """Run every contract check against ``provider`` using ``sample`` as a
-    known-good request. Returns the :class:`FetchResult` so callers can make
+    """Run every contract check against `provider` using `sample` as a
+    known-good request. Returns the `FetchResult` so callers can make
     extra provider-specific assertions.
     """
     assert isinstance(provider.id, str) and provider.id, "provider.id must be a non-empty string"
@@ -82,8 +82,8 @@ def assert_provider_conformance(provider: Provider, sample: FetchRequest) -> Fet
 class ProviderContractTests:
     """Mixin of parametrised contract tests.
 
-    Subclass it in a provider's test module and implement :meth:`make_provider`
-    and :meth:`sample_request`::
+    Subclass it in a provider's test module and implement `make_provider`
+    and `sample_request`:
 
         class TestFredContract(ProviderContractTests):
             def make_provider(self):

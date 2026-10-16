@@ -1,21 +1,32 @@
-name: Publish
+name: Publish to PyPI
 
 on:
-  push:
-    branches: [main]
-    paths: [pyproject.toml]
-  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: write # attach catalog.json to the release
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-      - name: Build
-        run: uv build
-      - name: Publish
+      - uses: astral-sh/setup-uv@v6
+      - run: uv build
+      - run: uv publish
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
-        run: uv publish --check-url https://pypi.org/simple/
+      # The docs (Yggdrasil) render catalog.json as Heimdall's reference pages
+      # and open a PR with it when they receive the dispatch.
+      - name: Attach catalog.json and notify the docs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DOCS_TOKEN: ${{ secrets.DOCS_DISPATCH_TOKEN }}
+        run: |
+          uv run --extra all python -m heimdall > catalog.json
+          gh release upload "$GITHUB_REF_NAME" catalog.json --clobber
+          GH_TOKEN="$DOCS_TOKEN" gh api repos/RamonAvocado/Yggdrasil/dispatches \
+            -f event_type=catalog \
+            -f 'client_payload[package]=heimdall' \
+            -f "client_payload[tag]=$GITHUB_REF_NAME"

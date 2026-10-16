@@ -1,4 +1,4 @@
-"""Entry point for ``python -m sandbox``."""
+"""Entry point for `python -m sandbox`."""
 
 from __future__ import annotations
 

@@ -14,7 +14,7 @@ _loaded = False
 
 
 def load_dotenv_once() -> None:
-    """Load ``.env`` (or ``$HEIMDALL_DOTENV_PATH``) into ``os.environ`` once
+    """Load `.env` (or `$HEIMDALL_DOTENV_PATH`) into `os.environ` once
     per process. Existing environment variables are never overwritten.
     """
     global _loaded

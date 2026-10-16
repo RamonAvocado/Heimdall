@@ -1,10 +1,10 @@
-"""The provider contract: what goes in (:class:`FetchRequest`) and what comes
-out (:class:`FetchResult`), plus the :class:`SchemaSpec` that describes and
+"""The provider contract: what goes in (`FetchRequest`) and what comes
+out (`FetchResult`), plus the `SchemaSpec` that describes and
 validates a returned frame.
 
 These types are deliberately domain-agnostic. Finance shapes (OHLCV bars,
-economic observations) are ordinary :class:`SchemaSpec` values defined in
-:mod:`heimdall.schemas`; a non-finance provider just defines its own.
+economic observations) are ordinary `SchemaSpec` values defined in
+`heimdall.schemas`; a non-finance provider just defines its own.
 """
 
 from __future__ import annotations
@@ -19,11 +19,11 @@ import polars as pl
 from heimdall.errors import RequestError, SchemaError
 
 __all__ = [
-    "FetchRequest",
-    "ColumnSpec",
-    "SchemaSpec",
-    "FetchResult",
     "BatchResult",
+    "ColumnSpec",
+    "FetchRequest",
+    "FetchResult",
+    "SchemaSpec",
 ]
 
 
@@ -31,10 +31,10 @@ __all__ = [
 class FetchRequest:
     """A request for data from a single provider.
 
-    ``resource`` is provider-specific: a ticker for yfinance, a series id for
+    `resource` is provider-specific: a ticker for yfinance, a series id for
     FRED, an endpoint key for something else. Everything else is optional and
     the provider decides whether it is meaningful; unknown knobs go in
-    ``params``.
+    `params`.
     """
 
     resource: str
@@ -51,7 +51,7 @@ class FetchRequest:
 
 @dataclass(frozen=True, slots=True)
 class ColumnSpec:
-    """One column in a :class:`SchemaSpec`."""
+    """One column in a `SchemaSpec`."""
 
     name: str
     dtype: pl.DataType | type[pl.DataType]
@@ -63,7 +63,7 @@ class ColumnSpec:
 class SchemaSpec:
     """A named, validatable description of a tabular result.
 
-    ``validate`` is intentionally strict about the things downstream code
+    `validate` is intentionally strict about the things downstream code
     relies on (columns exist, dtypes line up, keys are unique, the time axis is
     ordered) and silent about everything else (extra columns are fine).
     """
@@ -78,8 +78,8 @@ class SchemaSpec:
         return tuple(c.name for c in self.columns)
 
     def validate(self, frame: pl.DataFrame) -> None:
-        """Raise :class:`~heimdall.errors.SchemaError` if ``frame`` does not
-        conform. ``GENERIC_TABLE`` (no declared columns) only checks that the
+        """Raise `SchemaError` if `frame` does not
+        conform. `GENERIC_TABLE` (no declared columns) only checks that the
         frame is non-empty.
         """
         if not isinstance(frame, pl.DataFrame):
@@ -121,7 +121,7 @@ class SchemaSpec:
 
 @dataclass(frozen=True, slots=True)
 class FetchResult:
-    """What every :meth:`~heimdall.provider.Provider.fetch` returns."""
+    """What every `Provider.fetch` returns."""
 
     frame: pl.DataFrame
     schema: SchemaSpec
@@ -133,9 +133,9 @@ class FetchResult:
 
 @dataclass(frozen=True, slots=True)
 class BatchResult:
-    """What :meth:`~heimdall.provider.Provider.fetch` returns for a list of
-    resources. Never raised through: a resource that fails lands in ``failed``,
-    the rest are in ``ok``. Both are keyed by resource, in request order.
+    """What `Provider.fetch` returns for a list of
+    resources. Never raised through: a resource that fails lands in `failed`,
+    the rest are in `ok`. Both are keyed by resource, in request order.
     """
 
     ok: dict[str, FetchResult]
@@ -149,12 +149,12 @@ class BatchResult:
 
     @property
     def frame(self) -> pl.DataFrame:
-        """Every successful frame stacked vertically, in ``ok`` order. The
+        """Every successful frame stacked vertically, in `ok` order. The
         per-provider schemas carry a symbol / series id column already, so the
         rows stay distinguishable; the result is **not** re-sorted across
-        resources, so it will not pass a single-series ``SchemaSpec.validate``
-        (each ``ok`` frame individually does). Raises
-        :class:`~heimdall.errors.RequestError` if nothing succeeded.
+        resources, so it will not pass a single-series `SchemaSpec.validate`
+        (each `ok` frame individually does). Raises
+        `RequestError` if nothing succeeded.
         """
         if not self.ok:
             raise RequestError("BatchResult.frame: no successful results")

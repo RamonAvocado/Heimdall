@@ -1,20 +1,21 @@
-"""scripts/export_catalog.py produces what the docs expect."""
+"""`heimdall.catalog()` produces what the docs (and MCP servers) expect."""
 
 from __future__ import annotations
 
-import runpy
-from pathlib import Path
-
-SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "export_catalog.py"
+from heimdall import _BUNDLED, catalog
 
 
-def test_catalog_lists_every_bundled_provider_once() -> None:
-    from heimdall import _BUNDLED
-
-    providers = runpy.run_path(str(SCRIPT))["build"]()["kinds"]["providers"]
-
-    ids = [p["id"] for p in providers]
-    assert sorted(ids) == sorted(_BUNDLED)
-    for p in providers:
-        assert p["name"] and p["author"] and p["description"]
-        assert p["source"].startswith("src/heimdall/providers/")
+def test_catalog_entries_are_complete_and_unique() -> None:
+    providers = catalog()["kinds"]["providers"]
+    ids = [entry["id"] for entry in providers]
+    assert sorted(ids) == sorted(_BUNDLED), "every bundled provider, once"
+    for entry in providers:
+        assert entry["name"]
+        assert entry["author"]
+        assert entry["source"].startswith("src/heimdall/providers/")
+        assert entry["description"], f"{entry['id']}: add a docstring"
+        for param in entry["params"]:
+            assert param["type"], f"{entry['id']}.{param['name']}: annotate it"
+            assert param["description"], (
+                f'{entry["id"]}.{param["name"]}: describe it (Annotated[type, "..."])'
+            )

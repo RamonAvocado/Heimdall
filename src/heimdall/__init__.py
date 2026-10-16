@@ -1,14 +1,20 @@
-"""Heimdall: a host-agnostic data-provider SDK.
-Quick start::
+"""heimdall -- a host-agnostic data-provider SDK.
+
+- `heimdall.providers`: the provider contract, registry and bundled providers
+- `heimdall.schemas`  : shared `SchemaSpec` values (`OHLCV_BARS`, ...)
+- `heimdall.errors`   : the exception hierarchy
+
+Fetch by provider id:
 
     import heimdall
 
-    result = heimdall.fetch("fred", "DGS10")          # str shorthand for FetchRequest
+    result = heimdall.fetch("fred", "DGS10")  # str shorthand for FetchRequest
     result.schema.validate(result.frame)
     print(result.frame.head())
 
-Write your own provider by subclassing :class:`heimdall.Provider` and calling
-:func:`heimdall.register`. See ``docs/writing-a-provider.md``.
+Write your own provider by subclassing `heimdall.Provider` and calling
+`heimdall.register`; see CONTRIBUTING.md.  Third-party providers register
+through the `heimdall.providers` entry-point group.
 """
 
 from __future__ import annotations
@@ -21,14 +27,23 @@ from typing import Any
 from heimdall import errors, schemas
 from heimdall._config import load_dotenv_once
 from heimdall._contracts import BatchResult, FetchRequest, FetchResult
-from heimdall._provider import Capabilities, Provider, require_interval
-from heimdall._registry import get_provider, list_providers, register, registry
 from heimdall._time import utcnow
+from heimdall.catalog import catalog
+from heimdall.providers import (
+    PROVIDER_REGISTRY,
+    Capabilities,
+    Provider,
+    ProviderMetadata,
+    get_provider,
+    list_providers,
+    register,
+    require_interval,
+)
 
 __version__ = version("heimdall-mimird")
 
 # Only what a caller or a provider author actually touches. Schema types live in
-# ``heimdall.schemas``; the registry object and ``get_provider`` stay importable
+# `heimdall.schemas`; `PROVIDER_REGISTRY` and `get_provider` stay importable
 # but off the blessed surface.
 __all__ = [
     "__version__",
@@ -39,18 +54,19 @@ __all__ = [
     "FetchResult",
     "BatchResult",
     "Provider",
+    "ProviderMetadata",
     "Capabilities",
     "require_interval",
+    "catalog",
     "register",
     "list_providers",
     "errors",
     "schemas",
 ]
 
-# Providers bundled with Heimdall. Each self-registers (lazily - see
-# ``_register_lazy`` / ``Provider.from_env``) via a module-level
-# ``_register_lazy(registry)`` hook, but only if its optional dependency is
-# installed.
+# Providers bundled with Heimdall. Each self-registers lazily (see
+# `Provider.from_env`) via a module-level `_register_lazy(registry)` hook, but
+# only if its optional dependency is installed.
 _BUNDLED = ("fred", "sp500", "yfinance", "sec_form4")
 
 
@@ -62,9 +78,9 @@ def fetch(
 ) -> FetchResult | BatchResult:
     """Fetch from a registered provider.
 
-    ``request`` may be a :class:`FetchRequest`, or - the shorthand - a resource
-    string (with the rest as keyword arguments), or a list of resource strings
-    to fetch as a batch::
+    `request` may be a `FetchRequest`, or (the shorthand) a resource string
+    with the rest as keyword arguments, or a list of resource strings to fetch
+    as a batch:
 
         heimdall.fetch("yfinance", "AAPL", interval="1d")
         heimdall.fetch("yfinance", ["AAPL", "MSFT"], interval="1d")  # -> BatchResult
@@ -83,7 +99,7 @@ async def afetch(
     /,
     **kwargs: Any,
 ) -> FetchResult | BatchResult:
-    """Async mirror of :func:`fetch` for a resource string or a list of them."""
+    """Async mirror of `fetch` for a resource string or a list of them."""
     return await get_provider(provider_id).afetch(request, **kwargs)
 
 
@@ -94,12 +110,12 @@ def _load_bundled() -> None:
         except ImportError as exc:
             # TODO: Think about this
             # Its extra isn't installed. Remember why, so a later
-            # ``heimdall.fetch(name, ...)`` can say so instead of failing blank.
-            registry.mark_unavailable(name, str(exc))
+            # `heimdall.fetch(name, ...)` can say so instead of failing blank.
+            PROVIDER_REGISTRY.mark_unavailable(name, str(exc))
             continue
         hook = getattr(module, "_register_lazy", None)
         if callable(hook):
-            hook(registry)
+            hook(PROVIDER_REGISTRY)
 
 
 load_dotenv_once()

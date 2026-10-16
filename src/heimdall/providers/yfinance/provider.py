@@ -1,4 +1,4 @@
-"""Fetch OHLCV bars from Yahoo Finance via the ``yfinance`` library."""
+"""`yfinance`: OHLCV bars from Yahoo Finance via the `yfinance` library."""
 
 from __future__ import annotations
 
@@ -6,16 +6,18 @@ from datetime import UTC, datetime
 from typing import Any
 
 import polars as pl
-
 import yfinance as yf
+
 from heimdall._contracts import BatchResult, FetchRequest, FetchResult
-from heimdall._logging import get_logger
-from heimdall._provider import Capabilities, Provider, require_interval
 from heimdall._time import utcnow
 from heimdall.errors import HeimdallError, RequestError, UpstreamError
+from heimdall.providers._base import (
+    Capabilities,
+    Provider,
+    ProviderMetadata,
+    require_interval,
+)
 from heimdall.schemas import OHLCV_BARS
-
-_log = get_logger("providers.yfinance")
 
 _EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 _RENAME = {
@@ -32,7 +34,16 @@ _PRICE_COLS = ("open", "high", "low", "close")
 
 
 class YahooFinanceProvider(Provider):
-    id = "yfinance"
+    """Daily to monthly OHLCV bars for a ticker, adjusted for splits and dividends.
+
+    A list of tickers is fetched in one `yf.download` call (`native_batch`).
+    Rows with a null open/high/low/close are dropped and logged.
+    """
+
+    metadata = ProviderMetadata(
+        name="yfinance",
+        description="OHLCV bars from Yahoo Finance.",
+    )
     native_batch = True
     capabilities = Capabilities(
         data_kinds=(OHLCV_BARS.name,),
@@ -54,7 +65,7 @@ class YahooFinanceProvider(Provider):
                 auto_adjust=True,
                 progress=False,
             )
-        except Exception as exc:  # noqa: BLE001 - yfinance raises a grab-bag of types
+        except Exception as exc:  # yfinance raises a grab-bag of types
             raise UpstreamError(f"yfinance download failed for {ticker!r}: {exc}") from exc
 
         if raw is None or raw.empty:
@@ -87,7 +98,7 @@ class YahooFinanceProvider(Provider):
                 progress=False,
                 group_by="ticker",
             )
-        except Exception as exc:  # noqa: BLE001 - yfinance raises a grab-bag of types
+        except Exception as exc:  # yfinance raises a grab-bag of types
             raise UpstreamError(f"yfinance batch download failed for {tickers}: {exc}") from exc
 
         ok: dict[str, FetchResult] = {}
@@ -108,7 +119,7 @@ class YahooFinanceProvider(Provider):
         self, raw: Any, ticker: str, interval: str, request: FetchRequest
     ) -> FetchResult:
         """Turn a single-ticker pandas frame (OHLCV columns, datetime index)
-        into a schema-valid :class:`FetchResult`.
+        into a schema-valid `FetchResult`.
         """
         pdf = raw.reset_index().rename(columns=_RENAME)
         frame = pl.from_pandas(pdf)
@@ -138,7 +149,7 @@ class YahooFinanceProvider(Provider):
         valid = frame.filter(pl.all_horizontal(*(pl.col(c).is_not_null() for c in _PRICE_COLS)))
         dropped = frame.height - valid.height
         if dropped:
-            _log.warning("dropped null OHLC rows", dropped=dropped, ticker=ticker)
+            self._log.warning("dropped null OHLC rows", dropped=dropped, ticker=ticker)
         if valid.is_empty():
             raise RequestError(f"no valid OHLC rows for {ticker!r}")
 
@@ -156,7 +167,7 @@ class YahooFinanceProvider(Provider):
 def _slice_ticker(raw: Any, ticker: str) -> Any | None:
     """Pull one ticker's sub-frame out of a multi-ticker download. Handles
     either column-MultiIndex order ((ticker, field) or (field, ticker)).
-    Returns ``None`` if the ticker is absent.
+    Returns `None` if the ticker is absent.
     """
     columns = getattr(raw, "columns", None)
     if columns is None:

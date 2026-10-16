@@ -14,9 +14,9 @@ import polars as pl
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
-from sandbox._helpers import show, to_csv, to_parquet  # noqa: E402
+from sandbox._helpers import show, to_csv, to_parquet
 
-import heimdall  # noqa: E402
+import heimdall
 
 result = heimdall.fetch("fred", "DGS2")
 show(result, rows=5)
