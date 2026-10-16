@@ -43,3 +43,12 @@ out-of-tree provider package gets it with `pip install heimdall-mimird[testing]`
 Heimdall's own `dev` group already includes pytest.
 
 See `docs/writing-a-provider.md` for a full example.
+
+## Getting credited in the docs
+
+Every bundled provider is listed in the Mimird docs, generated from
+`scripts/export_catalog.py` on each release. When you contribute one, set
+`author = "your-handle"` on the class so the docs credit you. The docs show the
+first paragraph of the module (or class) docstring, the `__init__` keywords and
+the `Capabilities`. Check what will be published with
+`uv run --extra all scripts/export_catalog.py`.

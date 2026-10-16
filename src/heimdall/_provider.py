@@ -50,6 +50,9 @@ class Provider(ABC):
     id: ClassVar[str]
     capabilities: ClassVar[Capabilities]
 
+    #: GitHub handle of a community contributor; the docs credit them.
+    author: ClassVar[str] = "mimird"
+
     #: Set to ``True`` and override :meth:`_fetch_many` when the upstream can
     #: serve several resources in one call (e.g. yfinance). Leave ``False`` and
     #: the base class fetches a list one resource at a time.
