@@ -8,8 +8,9 @@ import pytest
 import yfinance as yf
 
 from heimdall._contracts import BatchResult, FetchRequest
-from heimdall.errors import RequestError, UpstreamError
+from heimdall.errors import ConfigError, RequestError, UpstreamError
 from heimdall.providers.yfinance import YahooFinanceProvider
+from heimdall.providers.yfinance.provider import ANALYST_RATINGS, FUNDAMENTALS
 from heimdall.schemas import OHLCV_BARS
 from heimdall.testing import ProviderContractTests
 
@@ -127,6 +128,92 @@ def test_fetch_many_collects_missing_ticker(monkeypatch: pytest.MonkeyPatch) -> 
     assert isinstance(batch.failed["BADX"], RequestError)
 
 
+class _FakeTicker:
+    """Stand-in for `yf.Ticker`: statements are item x period-end frames."""
+
+    def __init__(self, ticker: str) -> None:
+        periods = [pd.Timestamp("2025-09-30"), pd.Timestamp("2024-09-30")]
+        statement = pd.DataFrame(
+            {periods[0]: [100.0, float("nan")], periods[1]: [90.0, 5.0]},
+            index=["Total Revenue", "Other"],
+        )
+        for name in ("income_stmt", "balance_sheet", "cashflow"):
+            setattr(self, name, statement)
+            setattr(self, f"quarterly_{name}", pd.DataFrame())
+        self.upgrades_downgrades = pd.DataFrame(
+            {
+                "Firm": ["JP Morgan", "Needham"],
+                "ToGrade": ["Overweight", "Hold"],
+                "FromGrade": ["Neutral", ""],
+                "Action": ["up", "reit"],
+                "priceTargetAction": ["Raises", ""],
+                "currentPriceTarget": [360.0, 0.0],
+                "priorPriceTarget": [340.0, 0.0],
+            },
+            index=pd.DatetimeIndex(
+                [datetime(2026, 10, 12), datetime(2026, 1, 5)], name="GradeDate"
+            ),
+        )
+
+
+def test_fundamentals_long_form(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(yf, "Ticker", _FakeTicker)
+    result = YahooFinanceProvider(dataset="fundamentals").fetch("AAPL")
+
+    assert result.schema is FUNDAMENTALS
+    FUNDAMENTALS.validate(result.frame)
+    # 3 statements x (2 + 1 non-NaN) values; empty quarterlies skipped
+    assert result.frame.height == 9
+    assert set(result.frame["statement"]) == {
+        "income_stmt",
+        "balance_sheet",
+        "cashflow",
+    }
+    assert result.frame["timestamp"].min() == datetime(2024, 9, 30)
+
+
+def test_analyst_ratings_normalized(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(yf, "Ticker", _FakeTicker)
+    result = YahooFinanceProvider(dataset="analyst").fetch(
+        "AAPL", start=datetime(2026, 1, 1)
+    )
+
+    assert result.schema is ANALYST_RATINGS
+    frame = result.frame
+    assert frame["firm"].to_list() == ["Needham", "JP Morgan"]  # sorted ascending
+    needham = frame.row(0, named=True)
+    assert needham["current_price_target"] is None
+    assert needham["from_grade"] is None
+
+
+def test_analyst_batch_goes_per_ticker(monkeypatch: pytest.MonkeyPatch) -> None:
+    class _Empty:
+        upgrades_downgrades = pd.DataFrame()
+
+    monkeypatch.setattr(
+        yf, "Ticker", lambda t: _FakeTicker(t) if t == "AAPL" else _Empty()
+    )
+    batch = YahooFinanceProvider(dataset="analyst").fetch(["AAPL", "BADX"])
+    assert list(batch.ok) == ["AAPL"]
+    assert isinstance(batch.failed["BADX"], RequestError)
+
+
+def test_ticker_exception_becomes_upstream_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def boom(_: str):
+        raise RuntimeError("network down")
+
+    monkeypatch.setattr(yf, "Ticker", boom)
+    with pytest.raises(UpstreamError):
+        YahooFinanceProvider(dataset="fundamentals").fetch("AAPL")
+
+
+def test_bad_dataset_rejected() -> None:
+    with pytest.raises(ConfigError):
+        YahooFinanceProvider(dataset="news")  # type: ignore[arg-type]
+
+
 class TestYFinanceContract(ProviderContractTests):
     @pytest.fixture(autouse=True)
     def _patch(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -144,3 +231,11 @@ def test_yfinance_live() -> None:
     result = YahooFinanceProvider().fetch("^GSPC", interval="1d")
     OHLCV_BARS.validate(result.frame)
     assert result.frame.height > 100
+
+
+@pytest.mark.network
+@pytest.mark.parametrize("dataset", ["fundamentals", "analyst"])
+def test_yfinance_datasets_live(dataset: str) -> None:
+    result = YahooFinanceProvider(dataset=dataset).fetch("AAPL")  # type: ignore[arg-type]
+    result.schema.validate(result.frame)
+    assert result.frame.height > 10

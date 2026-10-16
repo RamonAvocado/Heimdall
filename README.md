@@ -32,6 +32,10 @@ print(result.frame.head())
 bars = heimdall.fetch("yfinance", "AAPL", interval="1d")
 print(bars.frame.tail())
 print(bars.metadata)  # {"ticker": "AAPL", "interval": "1d", "rows": ...}
+# financial statements (long form) or analyst ratings; env: HEIMDALL_YFINANCE_DATASET
+from heimdall.providers.yfinance import YahooFinanceProvider
+fundamentals = YahooFinanceProvider(dataset="fundamentals").fetch("AAPL")
+ratings = YahooFinanceProvider(dataset="analyst").fetch("AAPL")
 
 sp500 = heimdall.fetch("sp500", "constituents")
 print(sp500.frame.select("symbol", "security", "gics_sector").head())

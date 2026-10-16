@@ -1,23 +1,24 @@
-"""`yfinance`: OHLCV bars from Yahoo Finance via the `yfinance` library."""
+"""`yfinance`: OHLCV bars, financial statements or analyst ratings from Yahoo
+Finance via the `yfinance` library."""
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Annotated, Any, Literal
 
 import polars as pl
 import yfinance as yf
 
 from heimdall._contracts import BatchResult, FetchRequest, FetchResult
 from heimdall._time import utcnow
-from heimdall.errors import HeimdallError, RequestError, UpstreamError
+from heimdall.errors import ConfigError, HeimdallError, RequestError, UpstreamError
 from heimdall.providers._base import (
     Capabilities,
     Provider,
     ProviderMetadata,
     require_interval,
 )
-from heimdall.schemas import OHLCV_BARS
+from heimdall.schemas import OHLCV_BARS, ColumnSpec, SchemaSpec
 
 _EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 _RENAME = {
@@ -31,28 +32,104 @@ _RENAME = {
     "index": "timestamp",
 }
 _PRICE_COLS = ("open", "high", "low", "close")
+_STATEMENTS = ("income_stmt", "balance_sheet", "cashflow")
+_GRADE_RENAME = {
+    "GradeDate": "timestamp",
+    "Firm": "firm",
+    "ToGrade": "to_grade",
+    "FromGrade": "from_grade",
+    "Action": "action",
+    "priceTargetAction": "price_target_action",
+    "currentPriceTarget": "current_price_target",
+    "priorPriceTarget": "prior_price_target",
+}
+
+FUNDAMENTALS = SchemaSpec(
+    name="yfinance.fundamentals",
+    columns=(
+        ColumnSpec("timestamp", pl.Datetime, nullable=False, description="Period end"),
+        ColumnSpec("symbol", pl.String, nullable=False),
+        ColumnSpec(
+            "statement",
+            pl.String,
+            nullable=False,
+            description="income_stmt | balance_sheet | cashflow",
+        ),
+        ColumnSpec(
+            "frequency", pl.String, nullable=False, description="annual | quarterly"
+        ),
+        ColumnSpec("item", pl.String, nullable=False, description="Line item"),
+        ColumnSpec("value", pl.Float64, nullable=False),
+    ),
+    time_column="timestamp",
+    primary_key=("timestamp", "symbol", "statement", "frequency", "item"),
+)
+
+ANALYST_RATINGS = SchemaSpec(
+    name="yfinance.analyst_ratings",
+    columns=(
+        ColumnSpec("timestamp", pl.Datetime, nullable=False, description="Grade date"),
+        ColumnSpec("symbol", pl.String, nullable=False),
+        ColumnSpec("firm", pl.String, nullable=False),
+        ColumnSpec("to_grade", pl.String),
+        ColumnSpec("from_grade", pl.String),
+        ColumnSpec("action", pl.String, description="up | down | main | init | reit"),
+    ),
+    time_column="timestamp",
+)
+
+Dataset = Literal["bars", "fundamentals", "analyst"]
 
 
 class YahooFinanceProvider(Provider):
-    """Daily to monthly OHLCV bars for a ticker, adjusted for splits and dividends.
+    """One ticker's data from Yahoo Finance; `dataset` picks which:
 
-    A list of tickers is fetched in one `yf.download` call (`native_batch`).
-    Rows with a null open/high/low/close are dropped and logged.
+    - `"bars"` (default): daily to monthly OHLCV bars, adjusted for splits and
+      dividends. A list of tickers is fetched in one `yf.download` call
+      (`native_batch`). Rows with a null open/high/low/close are dropped.
+    - `"fundamentals"`: income statement, balance sheet and cash flow, annual
+      and quarterly, in long form (`FUNDAMENTALS`).
+    - `"analyst"`: the firm-by-firm upgrade/downgrade history with price
+      targets (`ANALYST_RATINGS`).
+
+    `start` / `end` filter every dataset; `interval` only applies to bars.
     """
 
     metadata = ProviderMetadata(
         name="yfinance",
-        description="OHLCV bars from Yahoo Finance.",
+        description="OHLCV bars, financial statements or analyst ratings from "
+        "Yahoo Finance.",
     )
+    # ponytail: class-wide, so afetch of a fundamentals/analyst list runs
+    # sequentially in one thread; make native_batch per-instance if that bites.
     native_batch = True
     capabilities = Capabilities(
-        data_kinds=(OHLCV_BARS.name,),
+        data_kinds=(OHLCV_BARS.name, FUNDAMENTALS.name, ANALYST_RATINGS.name),
         intervals=("1d", "1h", "1wk", "1mo"),
         supports_date_range=True,
         requires_auth=False,
     )
 
+    def __init__(
+        self,
+        *,
+        dataset: Annotated[
+            Dataset, "What to fetch: 'bars', 'fundamentals' or 'analyst'."
+        ] = "bars",
+    ) -> None:
+        if dataset not in ("bars", "fundamentals", "analyst"):
+            raise ConfigError(
+                f"yfinance: dataset must be 'bars', 'fundamentals' or 'analyst', "
+                f"got {dataset!r}"
+            )
+        self._dataset = dataset
+
     def _fetch(self, request: FetchRequest) -> FetchResult:
+        if self._dataset == "fundamentals":
+            return self._fetch_fundamentals(request)
+        if self._dataset == "analyst":
+            return self._fetch_analyst(request)
+
         ticker = request.resource
         interval = require_interval(request, self.capabilities, default="1d")
 
@@ -78,6 +155,8 @@ class YahooFinanceProvider(Provider):
         return self._normalize(raw, ticker, interval, request)
 
     def _fetch_many(self, requests: list[FetchRequest]) -> BatchResult:
+        if self._dataset != "bars":
+            return super()._fetch_many(requests)
         if len(requests) == 1:  # no need for a multi-ticker download / column slicing
             req = requests[0]
             try:
@@ -169,6 +248,104 @@ class YahooFinanceProvider(Provider):
             request=request,
             retrieved_at=utcnow(),
             metadata={"ticker": ticker, "interval": interval, "rows": valid.height},
+        )
+
+    def _fetch_fundamentals(self, request: FetchRequest) -> FetchResult:
+        ticker = request.resource
+        frames = []
+        try:
+            yt = yf.Ticker(ticker)
+            for statement in _STATEMENTS:
+                for frequency, prefix in (("annual", ""), ("quarterly", "quarterly_")):
+                    pdf = getattr(yt, prefix + statement)
+                    if pdf is None or pdf.empty:
+                        continue
+                    # Columns are period-end Timestamps; polars wants str names.
+                    wide = pdf.set_axis([str(c) for c in pdf.columns], axis=1)
+                    frames.append(
+                        pl.from_pandas(wide.rename_axis("item").reset_index())
+                        .unpivot(
+                            index="item", variable_name="timestamp", value_name="value"
+                        )
+                        .with_columns(
+                            statement=pl.lit(statement), frequency=pl.lit(frequency)
+                        )
+                    )
+        except Exception as exc:  # yfinance raises a grab-bag of types
+            raise UpstreamError(
+                f"yfinance fundamentals failed for {ticker!r}: {exc}"
+            ) from exc
+        if not frames:
+            raise RequestError(f"yfinance returned no fundamentals for {ticker!r}")
+
+        frame = (
+            pl.concat(frames, how="vertical_relaxed")
+            .with_columns(
+                pl.col("timestamp").str.to_datetime(),
+                pl.lit(ticker).alias("symbol"),
+                pl.col("item").cast(pl.String),
+                pl.col("value").cast(pl.Float64).fill_nan(None),
+            )
+            .drop_nulls("value")
+            .select(FUNDAMENTALS.column_names)
+        )
+        return self._result(frame, FUNDAMENTALS, request)
+
+    def _fetch_analyst(self, request: FetchRequest) -> FetchResult:
+        ticker = request.resource
+        try:
+            pdf = yf.Ticker(ticker).upgrades_downgrades
+        except Exception as exc:  # yfinance raises a grab-bag of types
+            raise UpstreamError(
+                f"yfinance analyst ratings failed for {ticker!r}: {exc}"
+            ) from exc
+        if pdf is None or pdf.empty:
+            raise RequestError(f"yfinance returned no analyst ratings for {ticker!r}")
+
+        frame = pl.from_pandas(pdf.reset_index().rename(columns=_GRADE_RENAME))
+        frame = frame.select(
+            pl.col("timestamp").cast(pl.Datetime),
+            pl.lit(ticker).alias("symbol"),
+            *(
+                c
+                for c in _GRADE_RENAME.values()
+                if c != "timestamp" and c in frame.columns
+            ),
+        ).with_columns(
+            # Yahoo means "none" by 0.0 targets and "" grades/actions.
+            pl.col(pl.Float64).replace(0.0, None),
+            pl.col(pl.String).replace("", None),
+        )
+        return self._result(frame, ANALYST_RATINGS, request)
+
+    def _result(
+        self, frame: pl.DataFrame, schema: SchemaSpec, request: FetchRequest
+    ) -> FetchResult:
+        """Date-filter, sort and validate a non-bars frame."""
+        if request.start is not None:
+            frame = frame.filter(
+                pl.col("timestamp") >= request.start.replace(tzinfo=None)
+            )
+        if request.end is not None:
+            frame = frame.filter(pl.col("timestamp") < request.end.replace(tzinfo=None))
+        frame = frame.sort("timestamp")
+        if frame.is_empty():
+            raise RequestError(
+                f"no {self._dataset} rows for {request.resource!r} in range"
+            )
+
+        schema.validate(frame)
+        return FetchResult(
+            frame=frame,
+            schema=schema,
+            provider_id=self.id,
+            request=request,
+            retrieved_at=utcnow(),
+            metadata={
+                "ticker": request.resource,
+                "dataset": self._dataset,
+                "rows": frame.height,
+            },
         )
 
 
