@@ -83,7 +83,9 @@ class SchemaSpec:
         frame is non-empty.
         """
         if not isinstance(frame, pl.DataFrame):
-            raise SchemaError(f"{self.name}: expected a polars DataFrame, got {type(frame)!r}")
+            raise SchemaError(
+                f"{self.name}: expected a polars DataFrame, got {type(frame)!r}"
+            )
 
         if not self.columns:
             if frame.height == 0:
@@ -102,15 +104,20 @@ class SchemaSpec:
                     f"expected {col.dtype}"
                 )
             if not col.nullable and frame[col.name].null_count() > 0:
-                raise SchemaError(f"{self.name}: non-nullable column {col.name!r} contains nulls")
+                raise SchemaError(
+                    f"{self.name}: non-nullable column {col.name!r} contains nulls"
+                )
 
         if self.time_column is not None:
             series = frame[self.time_column]
             if series.null_count() > 0:
-                raise SchemaError(f"{self.name}: time column {self.time_column!r} contains nulls")
+                raise SchemaError(
+                    f"{self.name}: time column {self.time_column!r} contains nulls"
+                )
             if not series.is_sorted():
                 raise SchemaError(
-                    f"{self.name}: time column {self.time_column!r} is not sorted ascending"
+                    f"{self.name}: time column {self.time_column!r} "
+                    "is not sorted ascending"
                 )
 
         if self.primary_key:

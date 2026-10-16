@@ -21,15 +21,27 @@ def _parse_date(value: str) -> datetime:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m sandbox", description=__doc__)
-    parser.add_argument("provider", nargs="?", help="registered provider id (e.g. fred, yfinance)")
-    parser.add_argument("resource", nargs="?", help="what to fetch: a ticker, a series id, ...")
-    parser.add_argument("--list", action="store_true", help="list registered providers and exit")
+    parser.add_argument(
+        "provider", nargs="?", help="registered provider id (e.g. fred, yfinance)"
+    )
+    parser.add_argument(
+        "resource", nargs="?", help="what to fetch: a ticker, a series id, ..."
+    )
+    parser.add_argument(
+        "--list", action="store_true", help="list registered providers and exit"
+    )
     parser.add_argument("--interval", help="bar interval, provider-specific (e.g. 1d)")
     parser.add_argument("--start", type=_parse_date, metavar="YYYY-MM-DD")
     parser.add_argument("--end", type=_parse_date, metavar="YYYY-MM-DD")
-    parser.add_argument("--rows", type=int, default=10, help="rows to print (default: 10)")
-    parser.add_argument("--to-parquet", action="store_true", help="also write parquet to scratch/")
-    parser.add_argument("--to-csv", action="store_true", help="also write csv to scratch/")
+    parser.add_argument(
+        "--rows", type=int, default=10, help="rows to print (default: 10)"
+    )
+    parser.add_argument(
+        "--to-parquet", action="store_true", help="also write parquet to scratch/"
+    )
+    parser.add_argument(
+        "--to-csv", action="store_true", help="also write csv to scratch/"
+    )
     return parser
 
 

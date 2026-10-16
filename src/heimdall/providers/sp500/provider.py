@@ -16,9 +16,7 @@ from heimdall.errors import RequestError, UpstreamError
 from heimdall.providers._base import Capabilities, Provider, ProviderMetadata
 from heimdall.schemas import GENERIC_TABLE
 
-_CSV_URL = (
-    "https://raw.githubusercontent.com/datasets/s-and-p-500-companies/main/data/constituents.csv"
-)
+_CSV_URL = "https://raw.githubusercontent.com/datasets/s-and-p-500-companies/main/data/constituents.csv"
 _RESOURCE = "constituents"
 
 
@@ -42,7 +40,9 @@ class SP500Provider(Provider):
         requires_auth=False,
     )
 
-    def __init__(self, *, timeout: Annotated[float, "HTTP timeout in seconds."] = 30.0) -> None:
+    def __init__(
+        self, *, timeout: Annotated[float, "HTTP timeout in seconds."] = 30.0
+    ) -> None:
         self._timeout = timeout
 
     def fetch(
@@ -59,7 +59,9 @@ class SP500Provider(Provider):
     def _fetch(self, request: FetchRequest) -> FetchResult:
         resource = request.resource.lower()
         if resource != _RESOURCE:
-            raise RequestError(f"sp500: resource must be {_RESOURCE!r}, got {request.resource!r}")
+            raise RequestError(
+                f"sp500: resource must be {_RESOURCE!r}, got {request.resource!r}"
+            )
 
         try:
             response = httpx.get(_CSV_URL, timeout=self._timeout, follow_redirects=True)
@@ -69,10 +71,15 @@ class SP500Provider(Provider):
 
         frame = pl.read_csv(StringIO(response.text))
         if frame.is_empty() or not any(c.lower() == "symbol" for c in frame.columns):
-            raise UpstreamError(f"unexpected S&P 500 CSV shape: columns {frame.columns}")
+            raise UpstreamError(
+                f"unexpected S&P 500 CSV shape: columns {frame.columns}"
+            )
 
         frame = frame.rename(
-            {c: c.strip().lower().replace(" ", "_").replace("-", "_") for c in frame.columns}
+            {
+                c: c.strip().lower().replace(" ", "_").replace("-", "_")
+                for c in frame.columns
+            }
         )
         before = frame.height
         frame = frame.drop_nulls(subset=["symbol"])

@@ -25,8 +25,12 @@ __all__ = [
 OHLCV_BARS = SchemaSpec(
     name="ohlcv.bars",
     columns=(
-        ColumnSpec("timestamp", pl.Datetime, nullable=False, description="Bar open time"),
-        ColumnSpec("symbol", pl.String, nullable=False, description="Instrument identifier"),
+        ColumnSpec(
+            "timestamp", pl.Datetime, nullable=False, description="Bar open time"
+        ),
+        ColumnSpec(
+            "symbol", pl.String, nullable=False, description="Instrument identifier"
+        ),
         ColumnSpec("open", pl.Float64, nullable=False),
         ColumnSpec("high", pl.Float64, nullable=False),
         ColumnSpec("low", pl.Float64, nullable=False),
@@ -41,8 +45,12 @@ OHLCV_BARS = SchemaSpec(
 OBSERVATIONS = SchemaSpec(
     name="timeseries.observations",
     columns=(
-        ColumnSpec("timestamp", pl.Datetime, nullable=False, description="Observation date"),
-        ColumnSpec("series_id", pl.String, nullable=False, description="Upstream series id"),
+        ColumnSpec(
+            "timestamp", pl.Datetime, nullable=False, description="Observation date"
+        ),
+        ColumnSpec(
+            "series_id", pl.String, nullable=False, description="Upstream series id"
+        ),
         ColumnSpec("value", pl.Float64, nullable=False),
     ),
     time_column="timestamp",

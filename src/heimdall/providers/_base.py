@@ -116,9 +116,13 @@ class Provider(ABC):
             return
         meta = getattr(cls, "metadata", None)
         if not isinstance(meta, ProviderMetadata) or not meta.name:
-            raise TypeError(f"{cls.__name__} must set 'metadata' to a ProviderMetadata with a name")
+            raise TypeError(
+                f"{cls.__name__} must set 'metadata' to a ProviderMetadata with a name"
+            )
         if not isinstance(getattr(cls, "capabilities", None), Capabilities):
-            raise TypeError(f"{cls.__name__} must set 'capabilities' to a Capabilities instance")
+            raise TypeError(
+                f"{cls.__name__} must set 'capabilities' to a Capabilities instance"
+            )
         cls.id = meta.name
         cls._log = get_log(component="provider", name=meta.name)
 
@@ -126,7 +130,11 @@ class Provider(ABC):
         if not request.resource:
             raise RequestError("resource cannot be empty")
 
-        if request.start is not None and request.end is not None and request.start >= request.end:
+        if (
+            request.start is not None
+            and request.end is not None
+            and request.start >= request.end
+        ):
             raise RequestError("start must be before end")
 
     def fetch(
@@ -278,7 +286,9 @@ def _init_params(cls: type[Provider]) -> list[dict[str, Any]]:
     return params
 
 
-def require_interval(request: FetchRequest, capabilities: Capabilities, *, default: str) -> str:
+def require_interval(
+    request: FetchRequest, capabilities: Capabilities, *, default: str
+) -> str:
     """Resolve and validate `request.interval` against `capabilities`.
 
     Returns `default` when the request leaves it unset.  Raises `RequestError`
@@ -287,6 +297,7 @@ def require_interval(request: FetchRequest, capabilities: Capabilities, *, defau
     interval = request.interval or default
     if capabilities.intervals and interval not in capabilities.intervals:
         raise RequestError(
-            f"interval {interval!r} not supported; choose one of {list(capabilities.intervals)}"
+            f"interval {interval!r} not supported; "
+            f"choose one of {list(capabilities.intervals)}"
         )
     return interval

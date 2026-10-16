@@ -12,7 +12,9 @@ import polars as pl
 from heimdall._contracts import FetchRequest, FetchResult
 from heimdall._time import utcnow
 from heimdall.providers._base import Capabilities, Provider, ProviderMetadata
-from heimdall.schemas import OBSERVATIONS  # reuse a shared SchemaSpec when the shape fits
+from heimdall.schemas import (
+    OBSERVATIONS,
+)  # reuse a shared SchemaSpec when the shape fits
 
 
 class TemplateProvider(Provider):

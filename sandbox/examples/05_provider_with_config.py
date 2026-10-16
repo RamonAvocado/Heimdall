@@ -46,7 +46,9 @@ class TokenEcho(Provider):
         self._timeout = timeout
 
     def _fetch(self, request: FetchRequest) -> FetchResult:
-        frame = pl.DataFrame({"resource": [request.resource], "api_key_seen": [self._api_key]})
+        frame = pl.DataFrame(
+            {"resource": [request.resource], "api_key_seen": [self._api_key]}
+        )
         return FetchResult(
             frame=frame,
             schema=GENERIC_TABLE,

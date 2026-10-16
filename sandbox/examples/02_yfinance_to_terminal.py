@@ -1,4 +1,6 @@
-"""Fetch OHLCV bars from Yahoo Finance and print them.  Needs `heimdall-mimird[yfinance]`.
+"""Fetch OHLCV bars from Yahoo Finance and print them.
+
+Needs `heimdall-mimird[yfinance]`.
 
 uv run python sandbox/examples/02_yfinance_to_terminal.py
 """

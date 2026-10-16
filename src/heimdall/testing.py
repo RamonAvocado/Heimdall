@@ -17,9 +17,12 @@ import polars as pl
 
 try:
     import pytest
-except ModuleNotFoundError as exc:  # pragma: no cover - exercised only without the extra
+except (
+    ModuleNotFoundError
+) as exc:  # pragma: no cover - exercised only without the extra
     raise ModuleNotFoundError(
-        "heimdall.testing requires pytest. Install it with:  pip install heimdall-mimird[testing]"
+        "heimdall.testing requires pytest. Install it with:  "
+        "pip install heimdall-mimird[testing]"
     ) from exc
 
 from heimdall._contracts import BatchResult, FetchRequest, FetchResult
@@ -29,13 +32,19 @@ from heimdall.providers._base import Capabilities, Provider
 __all__ = ["ProviderContractTests", "assert_provider_conformance"]
 
 
-def assert_provider_conformance(provider: Provider, sample: FetchRequest) -> FetchResult:
+def assert_provider_conformance(
+    provider: Provider, sample: FetchRequest
+) -> FetchResult:
     """Run every contract check against `provider` using `sample` as a
     known-good request. Returns the `FetchResult` so callers can make
     extra provider-specific assertions.
     """
-    assert isinstance(provider.id, str) and provider.id, "provider.id must be a non-empty string"
-    assert isinstance(provider.capabilities, Capabilities), "capabilities must be a Capabilities"
+    assert isinstance(provider.id, str) and provider.id, (
+        "provider.id must be a non-empty string"
+    )
+    assert isinstance(provider.capabilities, Capabilities), (
+        "capabilities must be a Capabilities"
+    )
     assert provider.capabilities.data_kinds, "capabilities.data_kinds must be non-empty"
 
     result = provider._fetch(sample)
@@ -43,7 +52,9 @@ def assert_provider_conformance(provider: Provider, sample: FetchRequest) -> Fet
     assert isinstance(result.frame, pl.DataFrame) and result.frame.height > 0, (
         "result.frame must be a non-empty DataFrame"
     )
-    assert result.provider_id == provider.id, "result.provider_id must equal provider.id"
+    assert result.provider_id == provider.id, (
+        "result.provider_id must equal provider.id"
+    )
     assert result.schema.name in provider.capabilities.data_kinds, (
         f"result.schema {result.schema.name!r} is not in capabilities.data_kinds"
     )
@@ -51,9 +62,10 @@ def assert_provider_conformance(provider: Provider, sample: FetchRequest) -> Fet
     # The frame must actually match the schema it claims.
     result.schema.validate(result.frame)
 
-    assert isinstance(result.retrieved_at, datetime) and result.retrieved_at.tzinfo is not None, (
-        "retrieved_at must be timezone-aware"
-    )
+    assert (
+        isinstance(result.retrieved_at, datetime)
+        and result.retrieved_at.tzinfo is not None
+    ), "retrieved_at must be timezone-aware"
     skew = abs((datetime.now(UTC) - result.retrieved_at).total_seconds())
     assert skew < 3600, "retrieved_at should be roughly now"
 

@@ -25,8 +25,12 @@ def test_afetch_single_returns_fetch_result() -> None:
 
 @respx.mock
 def test_afetch_list_fans_out_and_collects_failure() -> None:
-    respx.get(_URL, params={"id": "DGS10"}).mock(return_value=httpx.Response(200, text=_CSV))
-    respx.get(_URL, params={"id": "GDP"}).mock(return_value=httpx.Response(200, text=_GDP_CSV))
+    respx.get(_URL, params={"id": "DGS10"}).mock(
+        return_value=httpx.Response(200, text=_CSV)
+    )
+    respx.get(_URL, params={"id": "GDP"}).mock(
+        return_value=httpx.Response(200, text=_GDP_CSV)
+    )
     respx.get(_URL, params={"id": "NOPE"}).mock(return_value=httpx.Response(404))
 
     batch = asyncio.run(FredProvider().afetch(["DGS10", "GDP", "NOPE"]))

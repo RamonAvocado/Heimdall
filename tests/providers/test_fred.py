@@ -13,7 +13,10 @@ from heimdall.providers.fred import FredProvider
 from heimdall.schemas import OBSERVATIONS
 from heimdall.testing import ProviderContractTests
 
-_CSV = "observation_date,DGS10\n2024-01-02,3.95\n2024-01-03,3.91\n2024-01-04,.\n2024-01-05,4.02\n"
+_CSV = (
+    "observation_date,DGS10\n"
+    "2024-01-02,3.95\n2024-01-03,3.91\n2024-01-04,.\n2024-01-05,4.02\n"
+)
 _GDP_CSV = "observation_date,GDP\n2024-01-01,27000.0\n2024-04-01,27500.0\n"
 _URL = "https://fred.stlouisfed.org/graph/fredgraph.csv"
 
@@ -36,7 +39,9 @@ def test_fetch_parses_and_normalizes() -> None:
 @respx.mock
 def test_date_range_filter() -> None:
     respx.get(_URL).mock(return_value=httpx.Response(200, text=_CSV))
-    result = FredProvider().fetch("DGS10", start=datetime(2024, 1, 3), end=datetime(2024, 1, 4))
+    result = FredProvider().fetch(
+        "DGS10", start=datetime(2024, 1, 3), end=datetime(2024, 1, 4)
+    )
     assert result.frame["timestamp"].to_list() == [datetime(2024, 1, 3)]
 
 
@@ -79,8 +84,12 @@ class TestFredContract(ProviderContractTests):
 
 @respx.mock
 def test_fetch_many_returns_batch_result() -> None:
-    respx.get(_URL, params={"id": "DGS10"}).mock(return_value=httpx.Response(200, text=_CSV))
-    respx.get(_URL, params={"id": "GDP"}).mock(return_value=httpx.Response(200, text=_GDP_CSV))
+    respx.get(_URL, params={"id": "DGS10"}).mock(
+        return_value=httpx.Response(200, text=_CSV)
+    )
+    respx.get(_URL, params={"id": "GDP"}).mock(
+        return_value=httpx.Response(200, text=_GDP_CSV)
+    )
 
     batch = FredProvider().fetch(["DGS10", "GDP"])
 
@@ -89,12 +98,17 @@ def test_fetch_many_returns_batch_result() -> None:
     assert not batch.failed
     # combined frame stacks both series, distinguishable by series_id
     assert set(batch.frame["series_id"].unique().to_list()) == {"DGS10", "GDP"}
-    assert batch.frame.height == batch.ok["DGS10"].frame.height + batch.ok["GDP"].frame.height
+    assert (
+        batch.frame.height
+        == batch.ok["DGS10"].frame.height + batch.ok["GDP"].frame.height
+    )
 
 
 @respx.mock
 def test_fetch_many_collects_failures() -> None:
-    respx.get(_URL, params={"id": "DGS10"}).mock(return_value=httpx.Response(200, text=_CSV))
+    respx.get(_URL, params={"id": "DGS10"}).mock(
+        return_value=httpx.Response(200, text=_CSV)
+    )
     respx.get(_URL, params={"id": "NOPE"}).mock(return_value=httpx.Response(404))
 
     batch = FredProvider().fetch(["DGS10", "NOPE"])

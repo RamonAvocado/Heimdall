@@ -16,8 +16,12 @@ _SUBMISSIONS_URL = f"https://data.sec.gov/submissions/CIK{_CIK}.json"
 
 _ACCESSION_A = "0001140361-26-037020"  # Newstead Jennifer
 _ACCESSION_B = "0001140361-26-036226"  # Kondo Deirdre
-_BASE_A = f"https://www.sec.gov/Archives/edgar/data/320193/{_ACCESSION_A.replace('-', '')}"
-_BASE_B = f"https://www.sec.gov/Archives/edgar/data/320193/{_ACCESSION_B.replace('-', '')}"
+_BASE_A = (
+    f"https://www.sec.gov/Archives/edgar/data/320193/{_ACCESSION_A.replace('-', '')}"
+)
+_BASE_B = (
+    f"https://www.sec.gov/Archives/edgar/data/320193/{_ACCESSION_B.replace('-', '')}"
+)
 
 _TICKERS_JSON = {"0": {"cik_str": 320193, "ticker": "AAPL", "title": "Apple Inc."}}
 
@@ -123,14 +127,22 @@ def _provider() -> SecForm4Provider:
 
 def _mock_common(router: respx.MockRouter) -> None:
     router.get(_TICKERS_URL).mock(return_value=httpx.Response(200, json=_TICKERS_JSON))
-    router.get(_SUBMISSIONS_URL).mock(return_value=httpx.Response(200, json=_SUBMISSIONS_JSON))
-
-
-def _mock_filing(router: respx.MockRouter, base: str, xml_name: str, xml_text: str) -> None:
-    router.get(f"{base}/index.json").mock(
-        return_value=httpx.Response(200, json={"directory": {"item": [{"name": xml_name}]}})
+    router.get(_SUBMISSIONS_URL).mock(
+        return_value=httpx.Response(200, json=_SUBMISSIONS_JSON)
     )
-    router.get(f"{base}/{xml_name}").mock(return_value=httpx.Response(200, text=xml_text))
+
+
+def _mock_filing(
+    router: respx.MockRouter, base: str, xml_name: str, xml_text: str
+) -> None:
+    router.get(f"{base}/index.json").mock(
+        return_value=httpx.Response(
+            200, json={"directory": {"item": [{"name": xml_name}]}}
+        )
+    )
+    router.get(f"{base}/{xml_name}").mock(
+        return_value=httpx.Response(200, text=xml_text)
+    )
 
 
 @respx.mock

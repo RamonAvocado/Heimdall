@@ -39,7 +39,9 @@ class FredProvider(Provider):
         requires_auth=False,
     )
 
-    def __init__(self, *, timeout: Annotated[float, "HTTP timeout in seconds."] = 30.0) -> None:
+    def __init__(
+        self, *, timeout: Annotated[float, "HTTP timeout in seconds."] = 30.0
+    ) -> None:
         self._timeout = timeout
 
     def _fetch(self, request: FetchRequest) -> FetchResult:
@@ -54,11 +56,15 @@ class FredProvider(Provider):
             )
             response.raise_for_status()
         except httpx.HTTPError as exc:
-            raise UpstreamError(f"FRED request failed for {series_id!r}: {exc}") from exc
+            raise UpstreamError(
+                f"FRED request failed for {series_id!r}: {exc}"
+            ) from exc
 
         frame = pl.read_csv(StringIO(response.text), null_values=[".", ""])
         if frame.width < 2:
-            raise UpstreamError(f"unexpected FRED CSV for {series_id!r}: columns {frame.columns}")
+            raise UpstreamError(
+                f"unexpected FRED CSV for {series_id!r}: columns {frame.columns}"
+            )
 
         date_col = frame.columns[0]
         value_col = next(
@@ -82,7 +88,8 @@ class FredProvider(Provider):
 
         if normalized.is_empty():
             raise RequestError(
-                f"FRED returned no observations for {series_id!r} in the requested range"
+                f"FRED returned no observations for {series_id!r} "
+                "in the requested range"
             )
 
         OBSERVATIONS.validate(normalized)
@@ -92,7 +99,11 @@ class FredProvider(Provider):
             provider_id=self.id,
             request=request,
             retrieved_at=utcnow(),
-            metadata={"source": "fredgraph.csv", "series_id": series_id, "rows": normalized.height},
+            metadata={
+                "source": "fredgraph.csv",
+                "series_id": series_id,
+                "rows": normalized.height,
+            },
         )
 
 

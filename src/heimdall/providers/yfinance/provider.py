@@ -66,7 +66,9 @@ class YahooFinanceProvider(Provider):
                 progress=False,
             )
         except Exception as exc:  # yfinance raises a grab-bag of types
-            raise UpstreamError(f"yfinance download failed for {ticker!r}: {exc}") from exc
+            raise UpstreamError(
+                f"yfinance download failed for {ticker!r}: {exc}"
+            ) from exc
 
         if raw is None or raw.empty:
             raise RequestError(f"yfinance returned no data for {ticker!r}")
@@ -99,7 +101,9 @@ class YahooFinanceProvider(Provider):
                 group_by="ticker",
             )
         except Exception as exc:  # yfinance raises a grab-bag of types
-            raise UpstreamError(f"yfinance batch download failed for {tickers}: {exc}") from exc
+            raise UpstreamError(
+                f"yfinance batch download failed for {tickers}: {exc}"
+            ) from exc
 
         ok: dict[str, FetchResult] = {}
         failed: dict[str, Exception] = {}
@@ -107,7 +111,9 @@ class YahooFinanceProvider(Provider):
             ticker = request.resource
             sub = _slice_ticker(raw, ticker)
             if sub is None or sub.empty or sub.dropna(how="all").empty:
-                failed[ticker] = RequestError(f"yfinance returned no data for {ticker!r}")
+                failed[ticker] = RequestError(
+                    f"yfinance returned no data for {ticker!r}"
+                )
                 continue
             try:
                 ok[ticker] = self._normalize(sub, ticker, interval, request)
@@ -146,7 +152,9 @@ class YahooFinanceProvider(Provider):
             .sort("timestamp")
         )
 
-        valid = frame.filter(pl.all_horizontal(*(pl.col(c).is_not_null() for c in _PRICE_COLS)))
+        valid = frame.filter(
+            pl.all_horizontal(*(pl.col(c).is_not_null() for c in _PRICE_COLS))
+        )
         dropped = frame.height - valid.height
         if dropped:
             self._log.warning("dropped null OHLC rows", dropped=dropped, ticker=ticker)

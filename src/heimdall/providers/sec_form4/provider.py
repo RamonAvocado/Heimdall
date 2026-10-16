@@ -24,13 +24,26 @@ FORM4_TRANSACTIONS = SchemaSpec(
         ColumnSpec("ticker", pl.String, nullable=False),
         ColumnSpec("owner", pl.String, nullable=False),
         ColumnSpec("position", pl.String),
-        ColumnSpec("kind", pl.String, nullable=False, description="derivative or non-derivative"),
+        ColumnSpec(
+            "kind",
+            pl.String,
+            nullable=False,
+            description="derivative or non-derivative",
+        ),
         ColumnSpec("security", pl.String),
         ColumnSpec("transaction_date", pl.Date, nullable=False),
-        ColumnSpec("code", pl.String, description="raw SEC transaction code, e.g. S/P/A/M/F/G/C/X"),
+        ColumnSpec(
+            "code",
+            pl.String,
+            description="raw SEC transaction code, e.g. S/P/A/M/F/G/C/X",
+        ),
         ColumnSpec("shares", pl.Float64),
-        ColumnSpec("price", pl.Float64, description="per-share price; often null for grants"),
-        ColumnSpec("acquired_disposed", pl.String, description="A = acquired, D = disposed"),
+        ColumnSpec(
+            "price", pl.Float64, description="per-share price; often null for grants"
+        ),
+        ColumnSpec(
+            "acquired_disposed", pl.String, description="A = acquired, D = disposed"
+        ),
         ColumnSpec("shares_owned_after", pl.Float64),
         ColumnSpec("ownership", pl.String, description="D = direct, I = indirect"),
     ),
@@ -69,7 +82,9 @@ class SecForm4Provider(Provider):
         name="sec_form4",
         description="SEC Form 4 insider transactions, from EDGAR.",
     )
-    capabilities = Capabilities(data_kinds=(FORM4_TRANSACTIONS.name,), requires_auth=False)
+    capabilities = Capabilities(
+        data_kinds=(FORM4_TRANSACTIONS.name,), requires_auth=False
+    )
 
     def __init__(
         self,
@@ -88,7 +103,8 @@ class SecForm4Provider(Provider):
         owner = request.params.get("owner")
         if limit is None and owner is None:
             raise RequestError(
-                "sec_form4 needs params={'limit': n} and/or params={'owner': 'Exact Name'}"
+                "sec_form4 needs params={'limit': n} "
+                "and/or params={'owner': 'Exact Name'}"
             )
 
         cik = self._resolve_cik(ticker)
@@ -169,7 +185,9 @@ class SecForm4Provider(Provider):
         base = f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession_nodash}"
         index = self._get(f"{base}/index.json").json()
         xml_name = next(
-            item["name"] for item in index["directory"]["item"] if item["name"].endswith(".xml")
+            item["name"]
+            for item in index["directory"]["item"]
+            if item["name"].endswith(".xml")
         )
         xml_text = self._get(f"{base}/{xml_name}").text
         return _parse_form4_xml(xml_text)
@@ -186,7 +204,9 @@ class SecForm4Provider(Provider):
                 )
                 response.raise_for_status()
             except httpx.HTTPError as exc:
-                raise UpstreamError(f"SEC EDGAR request failed for {url}: {exc}") from exc
+                raise UpstreamError(
+                    f"SEC EDGAR request failed for {url}: {exc}"
+                ) from exc
             finally:
                 _last_call = time.monotonic()
         return response
@@ -205,9 +225,14 @@ def _val(el: ElementTree.Element, tag: str) -> str | None:
 def _parse_form4_xml(xml_text: str) -> dict:
     root = ElementTree.fromstring(xml_text)
     owner_el = root.find("reportingOwner")
-    relationship = owner_el.find("reportingOwnerRelationship") if owner_el is not None else None
+    relationship = (
+        owner_el.find("reportingOwnerRelationship") if owner_el is not None else None
+    )
 
-    tables = (("nonDerivativeTable", "non-derivative"), ("derivativeTable", "derivative"))
+    tables = (
+        ("nonDerivativeTable", "non-derivative"),
+        ("derivativeTable", "derivative"),
+    )
     transactions = []
     for table, kind in tables:
         table_el = root.find(table)
@@ -239,7 +264,9 @@ def _parse_form4_xml(xml_text: str) -> dict:
     if _flag("isDirector"):
         roles.append("director")
     if _flag("isOfficer"):
-        title = relationship.findtext("officerTitle") if relationship is not None else None
+        title = (
+            relationship.findtext("officerTitle") if relationship is not None else None
+        )
         roles.append(f"officer ({title})" if title else "officer")
     if _flag("isTenPercentOwner"):
         roles.append("10% owner")
@@ -250,7 +277,9 @@ def _parse_form4_xml(xml_text: str) -> dict:
         "issuer": root.findtext("issuer/issuerName"),
         "ticker": root.findtext("issuer/issuerTradingSymbol"),
         "owner": (
-            owner_el.findtext("reportingOwnerId/rptOwnerName") if owner_el is not None else None
+            owner_el.findtext("reportingOwnerId/rptOwnerName")
+            if owner_el is not None
+            else None
         ),
         "position": ", ".join(roles) if roles else "unknown",
         "transactions": transactions,

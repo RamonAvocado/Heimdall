@@ -70,11 +70,15 @@ class ProviderRegistry:
         elif isinstance(provider, type) and issubclass(provider, Provider):
             instance = provider()
         else:
-            raise ProviderError(f"expected a Provider instance or subclass, got {provider!r}")
+            raise ProviderError(
+                f"expected a Provider instance or subclass, got {provider!r}"
+            )
 
         pid = instance.id
         if (pid in self._providers or pid in self._factories) and not replace:
-            raise ProviderError(f"provider id {pid!r} is already registered (pass replace=True)")
+            raise ProviderError(
+                f"provider id {pid!r} is already registered (pass replace=True)"
+            )
         self._providers[pid] = instance
         self._factories.pop(pid, None)
         self._unavailable.pop(pid, None)
@@ -164,7 +168,9 @@ class ProviderRegistry:
                 else:
                     raise ProviderError(f"unsupported entry point target {obj!r}")
             except Exception as exc:  # one bad plugin must not break discovery
-                _log.warning("plugin failed to load", entry_point=ep.name, error=str(exc))
+                _log.warning(
+                    "plugin failed to load", entry_point=ep.name, error=str(exc)
+                )
                 self.mark_unavailable(ep.name, str(exc))
 
 

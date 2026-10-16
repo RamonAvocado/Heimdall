@@ -74,8 +74,8 @@ def to_csv(result: FetchResult) -> Path:
 #
 #   1. add a dependency group in pyproject.toml, e.g.
 #        [dependency-groups]
-#        sandbox = ["sqlalchemy>=2"]                          # SQLite (driver is stdlib)
-#        # sandbox = ["sqlalchemy>=2", "psycopg[binary]>=3"]  # PostgreSQL
+#        sandbox = ["sqlalchemy>=2"]                         # SQLite (stdlib driver)
+#        # sandbox = ["sqlalchemy>=2", "psycopg[binary]>=3"] # PostgreSQL
 #      then:  uv sync --group sandbox
 #   2. set HEIMDALL_SANDBOX_DB_URL, e.g. sqlite:///sandbox/scratch/heimdall.db
 #   3. uncomment:

@@ -11,9 +11,12 @@ from heimdall.schemas import GENERIC_TABLE
 from heimdall.testing import ProviderContractTests
 
 _CSV = (
-    "Symbol,Security,GICS Sector,GICS Sub-Industry,Headquarters Location,Date added,CIK,Founded\n"
-    'MMM,3M,Industrials,Industrial Conglomerates,"Saint Paul, Minnesota",1957-03-04,66740,1902\n'
-    'AOS,A. O. Smith,Industrials,Building Products,"Milwaukee, Wisconsin",2017-07-26,91142,1916\n'
+    "Symbol,Security,GICS Sector,GICS Sub-Industry,"
+    "Headquarters Location,Date added,CIK,Founded\n"
+    "MMM,3M,Industrials,Industrial Conglomerates,"
+    '"Saint Paul, Minnesota",1957-03-04,66740,1902\n'
+    "AOS,A. O. Smith,Industrials,Building Products,"
+    '"Milwaukee, Wisconsin",2017-07-26,91142,1916\n'
 )
 _URL = "https://raw.githubusercontent.com/datasets/s-and-p-500-companies/main/data/constituents.csv"
 
