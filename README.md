@@ -35,6 +35,9 @@ print(bars.metadata)  # {"ticker": "AAPL", "interval": "1d", "rows": ...}
 
 sp500 = heimdall.fetch("sp500", "constituents")
 print(sp500.frame.select("symbol", "security", "gics_sector").head())
+# + former members (listed=False, date_removed, removal_reason); env: HEIMDALL_SP500_PULL_UNLISTED=true
+from heimdall.providers.sp500 import SP500Provider
+everyone = SP500Provider(pull_unlisted=True).fetch()
 
 # a list of resources -> BatchResult(.ok / .failed keyed by resource, + combined .frame)
 batch = heimdall.fetch("yfinance", ["AAPL", "MSFT", "NVDA"], interval="1d")
