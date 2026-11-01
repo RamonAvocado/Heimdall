@@ -22,6 +22,7 @@ from typing import Any, ClassVar, get_args
 
 from ramonavocado_logger import get_log
 
+from heimdall import _config
 from heimdall._contracts import BatchResult, FetchRequest, FetchResult
 from heimdall.errors import ConfigError, HeimdallError, RequestError
 
@@ -215,36 +216,42 @@ class Provider(ABC):
 
     @classmethod
     def from_env(cls, **overrides: Any) -> Provider:
-        """Build an instance, resolving required `__init__` config from the
-        environment (or a loaded `.env` file) via `HEIMDALL_<id>_<param>` env
-        vars (e.g. `user_agent` on `sec_form4` ->
-        `HEIMDALL_SEC_FORM4_USER_AGENT`).  `overrides` wins over the
-        environment.  Raises `ConfigError` naming exactly what's missing.
+        """Build an instance, resolving each `__init__` param from, in order:
+        `overrides`, `heimdall.configure(id, ...)`, the `HEIMDALL_<id>_<param>`
+        env var (or a loaded `.env` file; e.g. `user_agent` on `sec_form4` ->
+        `HEIMDALL_SEC_FORM4_USER_AGENT`), then `[tool.heimdall.<id>]` in the
+        nearest pyproject.toml.  Raises `ConfigError` naming what's missing.
         """
         # ponytail: env values are always strings; a provider needing a required
-        # non-str param must cast in its own __init__ or pass it via `overrides`.
+        # non-str param must cast in its own __init__ (pyproject/configure keep types).
+        sources = (
+            overrides,
+            _config.configured.get(cls.id, {}),
+            _EnvSource(cls.id),
+            _config.pyproject_settings().get(cls.id, {}),
+        )
         params = inspect.signature(cls.__init__).parameters
         kwargs: dict[str, Any] = {}
         missing: list[tuple[str, str]] = []
         for name, param in params.items():
             if name == "self":
                 continue
-            if name in overrides:
-                kwargs[name] = overrides[name]
-                continue
-            env_name = f"HEIMDALL_{cls.id.upper()}_{name.upper()}"
-            value = os.environ.get(env_name)
-            if value is not None:
-                kwargs[name] = value
+            source = next((s for s in sources if name in s), None)
+            if source is not None:
+                kwargs[name] = source[name]
             elif param.default is inspect.Parameter.empty:
-                missing.append((name, env_name))
+                missing.append((name, f"HEIMDALL_{cls.id.upper()}_{name.upper()}"))
         if missing:
-            detail = "\n".join(f"  - {name}: set {env}=..." for name, env in missing)
             names = ", ".join(name for name, _ in missing)
+            detail = "\n".join(
+                f'  - {name}: heimdall.configure("{cls.id}", {name}=...), '
+                f"or [tool.heimdall.{cls.id}] {name} = ... in pyproject.toml, "
+                f"or {env}=..."
+                for name, env in missing
+            )
             raise ConfigError(
-                f"{cls.id!r} needs configuration to construct - set the following "
-                f"environment variable(s) (a .env file works too), or construct it "
-                f"yourself, e.g. {cls.__name__}({names}=...):\n{detail}"
+                f"{cls.id!r} needs configuration to construct (or construct "
+                f"it yourself, e.g. {cls.__name__}({names}=...)):\n{detail}"
             )
         return cls(**kwargs)
 
@@ -306,3 +313,16 @@ def require_interval(
             f"choose one of {list(capabilities.intervals)}"
         )
     return interval
+
+
+class _EnvSource:
+    """`HEIMDALL_<id>_<param>` env vars, read like a mapping by `from_env`."""
+
+    def __init__(self, provider_id: str) -> None:
+        self._prefix = f"HEIMDALL_{provider_id.upper()}_"
+
+    def __contains__(self, name: str) -> bool:
+        return self._prefix + name.upper() in os.environ
+
+    def __getitem__(self, name: str) -> str:
+        return os.environ[self._prefix + name.upper()]

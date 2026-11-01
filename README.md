@@ -63,6 +63,24 @@ defaults). Asking `heimdall.fetch(...)` for a provider whose extra is missing
 raises `ProviderNotFound` telling you which extra to install, rather than
 failing blank.
 
+## Configuration
+
+Providers that need config (an API key, a contact for SEC) read it from, in order:
+
+```python
+heimdall.configure("sec_form4", user_agent="Your Name you@example.com")  # 1. code
+```
+
+```bash
+export HEIMDALL_SEC_FORM4_USER_AGENT="Your Name you@example.com"  # 2. env / .env
+```
+
+```toml
+# 3. pyproject.toml - one place for every package's config; no secrets, it's committed
+[tool.heimdall.sec_form4]
+user_agent = "Your Name you@example.com"
+```
+
 ## Writing a provider
 
 Subclass `heimdall.Provider`, set `metadata` + `capabilities`, implement

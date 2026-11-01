@@ -5,6 +5,18 @@ import os
 import pytest
 
 import heimdall._config as config
+from heimdall.providers import Capabilities, Provider, ProviderMetadata
+
+
+class _NeedsToken(Provider):
+    metadata = ProviderMetadata(name="needs_token")
+    capabilities = Capabilities(data_kinds=("table.generic",))
+
+    def __init__(self, *, token: str) -> None:
+        self.token = token
+
+    def _fetch(self, request):  # pragma: no cover - not exercised here
+        raise NotImplementedError
 
 
 @pytest.fixture(autouse=True)
@@ -57,3 +69,37 @@ def test_only_loads_once_per_process(tmp_path, monkeypatch) -> None:
     config.load_dotenv_once()
 
     assert os.environ["FOO"] == "first"
+
+
+def test_from_env_precedence_configure_env_pyproject(tmp_path, monkeypatch) -> None:
+    pyproject = '[tool.heimdall.needs_token]\ntoken = "toml"\n'
+    (tmp_path / "pyproject.toml").write_text(pyproject)
+    (tmp_path / "sub").mkdir()
+    monkeypatch.chdir(tmp_path / "sub")  # found by walking up
+    monkeypatch.delenv("HEIMDALL_NEEDS_TOKEN_TOKEN", raising=False)
+    monkeypatch.setattr(config, "configured", {})
+    config.pyproject_settings.cache_clear()
+    try:
+        assert _NeedsToken.from_env().token == "toml"
+        monkeypatch.setenv("HEIMDALL_NEEDS_TOKEN_TOKEN", "env")
+        assert _NeedsToken.from_env().token == "env"
+        config.configured["needs_token"] = {"token": "code"}
+        assert _NeedsToken.from_env().token == "code"
+        assert _NeedsToken.from_env(token="override").token == "override"
+    finally:
+        config.pyproject_settings.cache_clear()
+
+
+def test_configure_rebuilds_a_lazily_built_provider(monkeypatch) -> None:
+    import heimdall
+    from heimdall.providers import PROVIDER_REGISTRY
+
+    monkeypatch.setattr(config, "configured", {})
+    PROVIDER_REGISTRY.register_lazy("needs_token", _NeedsToken.from_env)
+    try:
+        heimdall.configure("needs_token", token="a")
+        assert PROVIDER_REGISTRY.get("needs_token").token == "a"
+        heimdall.configure("needs_token", token="b")
+        assert PROVIDER_REGISTRY.get("needs_token").token == "b"
+    finally:
+        PROVIDER_REGISTRY.unregister("needs_token")

@@ -113,7 +113,6 @@ class ProviderRegistry:
         if factory is not None:
             instance = factory()  # a ConfigError here propagates as-is
             self._providers[provider_id] = instance
-            del self._factories[provider_id]
             return instance
         raise ProviderNotFound(self._not_found_message(provider_id))
 
@@ -133,6 +132,12 @@ class ProviderRegistry:
                 "call .register(...) on it first."
             )
         return f"no provider registered for id {provider_id!r}; known: {self.list()}"
+
+    def reset(self, provider_id: str) -> None:
+        """Drop a lazily built instance so the next `get` rebuilds it from the
+        current config.  Eagerly registered instances are left alone."""
+        if provider_id in self._factories:
+            self._providers.pop(provider_id, None)
 
     def list(self) -> list[str]:
         """Sorted list of every registered id (loading plugins first)."""

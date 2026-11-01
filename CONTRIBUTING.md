@@ -75,12 +75,16 @@ heimdall.register(MyProvider(api_key="..."))  # or register(MyProvider) if all d
 result = heimdall.fetch("mine", "some-resource")
 ```
 
-`Provider.from_env()` builds it from `HEIMDALL_<ID>_<PARAM>` env vars, one for
-each `__init__` parameter without a default. For example, `api_key` on `mine`
-reads `HEIMDALL_MINE_API_KEY`. A `.env` file in the working directory is loaded
-once at `import heimdall`, and real env vars always win over it (see
-`.env.example`). Missing config raises `ConfigError` naming exactly which
-variable to set.
+`Provider.from_env()` builds it, resolving each `__init__` parameter from the
+first of:
+
+1. `heimdall.configure("mine", api_key=...)` in code;
+2. the `HEIMDALL_<ID>_<PARAM>` env var (`HEIMDALL_MINE_API_KEY`). A `.env` file in
+   the working directory is loaded once at `import heimdall`; real env vars win;
+3. `[tool.heimdall.mine]` in the nearest `pyproject.toml` (keep secrets out, it's
+   committed).
+
+Missing config raises `ConfigError` naming all three ways to set it.
 
 ### Prove it conforms
 

@@ -24,7 +24,7 @@ from importlib import import_module
 from importlib.metadata import version
 from typing import Any
 
-from heimdall import errors, schemas
+from heimdall import _config, errors, schemas
 from heimdall._config import load_dotenv_once
 from heimdall._contracts import BatchResult, FetchRequest, FetchResult
 from heimdall._time import utcnow
@@ -49,6 +49,7 @@ __all__ = [
     "__version__",
     "fetch",
     "afetch",
+    "configure",
     "utcnow",
     "FetchRequest",
     "FetchResult",
@@ -101,6 +102,17 @@ async def afetch(
 ) -> FetchResult | BatchResult:
     """Async mirror of `fetch` for a resource string or a list of them."""
     return await get_provider(provider_id).afetch(request, **kwargs)
+
+
+def configure(provider_id: str, /, **params: Any) -> None:
+    """Set a provider's config in code, e.g.
+    `heimdall.configure("sec_form4", user_agent="Acme ops@acme.com")`.
+
+    Wins over env vars and `[tool.heimdall.<id>]` in pyproject.toml; repeated
+    calls merge.  An already built provider is rebuilt on its next use.
+    """
+    _config.configured.setdefault(provider_id, {}).update(params)
+    PROVIDER_REGISTRY.reset(provider_id)
 
 
 def _load_bundled() -> None:

@@ -1,12 +1,12 @@
 """`sec_form4`: SEC Form 4 (insider transaction) filings from EDGAR.
 
 Needs a caller-supplied `user_agent` (SEC requires a real contact; there's
-no safe shared default). Set it once via environment variable and it's
-resolved automatically on first use:
+no safe shared default). Set it once and it's resolved on first use:
 
-    export HEIMDALL_SEC_FORM4_USER_AGENT="Your Name your@email.com"
+    heimdall.configure("sec_form4", user_agent="Your Name your@email.com")
 
-(a `.env` file works too - see `.env.example`). Or construct it
+or `[tool.heimdall.sec_form4]` `user_agent = "..."` in pyproject.toml, or
+`HEIMDALL_SEC_FORM4_USER_AGENT` (a `.env` file works too). Or construct it
 yourself for a one-off / non-default `timeout`:
 
     import heimdall
