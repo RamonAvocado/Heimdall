@@ -43,6 +43,10 @@ print(sp500.frame.select("symbol", "security", "gics_sector").head())
 from heimdall.providers.sp500 import SP500Provider
 everyone = SP500Provider(pull_unlisted=True).fetch()
 
+# other indexes, same shape (symbol, name, ...): nasdaq100, dow30, ftse100,
+# dax, cac40, nikkei225, hang_seng
+dax = heimdall.fetch("dax", "constituents")
+
 # a list of resources -> BatchResult(.ok / .failed keyed by resource, + combined .frame)
 batch = heimdall.fetch("yfinance", ["AAPL", "MSFT", "NVDA"], interval="1d")
 print(batch.frame.height, list(batch.failed))

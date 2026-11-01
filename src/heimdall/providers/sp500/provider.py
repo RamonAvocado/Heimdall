@@ -5,7 +5,6 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import datetime
-from html.parser import HTMLParser
 from io import StringIO
 from typing import Annotated
 
@@ -16,6 +15,7 @@ from heimdall._contracts import BatchResult, FetchRequest, FetchResult
 from heimdall._time import utcnow
 from heimdall.errors import RequestError, UpstreamError
 from heimdall.providers._base import Capabilities, Provider, ProviderMetadata
+from heimdall.providers._html import parse_tables
 from heimdall.schemas import GENERIC_TABLE
 
 _CSV_URL = "https://raw.githubusercontent.com/datasets/s-and-p-500-companies/main/data/constituents.csv"
@@ -143,9 +143,8 @@ class SP500Provider(Provider):
         except httpx.HTTPError as exc:
             raise UpstreamError(f"S&P 500 changes request failed: {exc}") from exc
 
-        parser = _ChangesTableParser()
-        parser.feed(response.text)
-        rows = [r for r in parser.rows if len(r) >= 6 and r[3]]
+        changes = [t for t in parse_tables(response.text) if t.id == "changes"]
+        rows = [r for t in changes for r in t.rows if len(r) >= 6 and r[3]]
         if not rows:
             raise UpstreamError("S&P 500 changes table not found or empty")
 
@@ -165,32 +164,3 @@ class SP500Provider(Provider):
             .unique(subset=["symbol"], keep="first", maintain_order=True)
             .with_columns(listed=pl.lit(False))
         )
-
-
-class _ChangesTableParser(HTMLParser):
-    """Collects the `<td>` texts of each row in `<table id="changes">`."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.rows: list[list[str]] = []
-        self._depth = 0  # table nesting depth, counted from the changes table
-        self._cell: list[str] | None = None
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if tag == "table" and (self._depth or ("id", "changes") in attrs):
-            self._depth += 1
-        elif self._depth == 1 and tag == "tr":
-            self.rows.append([])
-        elif self._depth == 1 and tag == "td" and self.rows:
-            self._cell = []
-
-    def handle_endtag(self, tag: str) -> None:
-        if tag == "table" and self._depth:
-            self._depth -= 1
-        elif tag == "td" and self._cell is not None:
-            self.rows[-1].append("".join(self._cell).strip())
-            self._cell = None
-
-    def handle_data(self, data: str) -> None:
-        if self._cell is not None:
-            self._cell.append(data)

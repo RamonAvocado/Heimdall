@@ -67,7 +67,7 @@ __all__ = [
 # Providers bundled with Heimdall. Each self-registers lazily (see
 # `Provider.from_env`) via a module-level `_register_lazy(registry)` hook, but
 # only if its optional dependency is installed.
-_BUNDLED = ("fred", "sp500", "yfinance", "sec_form4")
+_BUNDLED = ("fred", "sp500", "yfinance", "sec_form4", "indexes")
 
 
 def fetch(

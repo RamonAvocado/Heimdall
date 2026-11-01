@@ -8,7 +8,9 @@ from heimdall import _BUNDLED, catalog
 def test_catalog_entries_are_complete_and_unique() -> None:
     providers = catalog()["kinds"]["providers"]
     ids = [entry["id"] for entry in providers]
-    assert sorted(ids) == sorted(_BUNDLED), "every bundled provider, once"
+    assert len(ids) == len(set(ids)), "every provider once"
+    modules = {entry["source"].split("/")[3] for entry in providers}
+    assert modules == set(_BUNDLED), "every bundled module contributes"
     for entry in providers:
         assert entry["name"]
         assert entry["author"]

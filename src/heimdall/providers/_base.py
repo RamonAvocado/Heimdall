@@ -112,7 +112,12 @@ class Provider(ABC):
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
-        if getattr(cls, "__abstractmethods__", None):
+        # An abstract intermediate base needs no metadata. `__abstractmethods__`
+        # isn't set yet here (ABCMeta computes it after), so look directly.
+        if any(
+            getattr(getattr(cls, name, None), "__isabstractmethod__", False)
+            for name in dir(cls)
+        ):
             return
         meta = getattr(cls, "metadata", None)
         if not isinstance(meta, ProviderMetadata) or not meta.name:
