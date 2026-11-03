@@ -13,6 +13,7 @@ import polars as pl
 from heimdall._contracts import ColumnSpec, SchemaSpec
 
 __all__ = [
+    "FUNDAMENTAL_FACTS",
     "GENERIC_TABLE",
     "KNOWN_SCHEMAS",
     "OBSERVATIONS",
@@ -58,9 +59,39 @@ OBSERVATIONS = SchemaSpec(
 )
 
 
+FUNDAMENTAL_FACTS = SchemaSpec(
+    name="fundamentals.facts",
+    columns=(
+        ColumnSpec("symbol", pl.String, nullable=False),
+        ColumnSpec(
+            "metric",
+            pl.String,
+            nullable=False,
+            description="revenue, net_income, eps_diluted, cash, debt, shares_out, ...",
+        ),
+        ColumnSpec(
+            "period_type",
+            pl.String,
+            nullable=False,
+            description="Q = quarter, FY = fiscal year, I = instant (balance sheet)",
+        ),
+        ColumnSpec("period_end", pl.Date, nullable=False),
+        ColumnSpec("value", pl.Float64, nullable=False),
+        ColumnSpec(
+            "reported_at",
+            pl.Date,
+            nullable=False,
+            description="When it became public (first filing), for point-in-time use",
+        ),
+    ),
+    time_column="period_end",
+    primary_key=("symbol", "metric", "period_type", "period_end"),
+)
+
+
 GENERIC_TABLE = SchemaSpec(name="table.generic", columns=())
 
 
 KNOWN_SCHEMAS: dict[str, SchemaSpec] = {
-    s.name: s for s in (OHLCV_BARS, OBSERVATIONS, GENERIC_TABLE)
+    s.name: s for s in (OHLCV_BARS, OBSERVATIONS, FUNDAMENTAL_FACTS, GENERIC_TABLE)
 }
