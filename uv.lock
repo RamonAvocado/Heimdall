@@ -532,7 +532,7 @@ wheels = [
 
 [[package]]
 name = "heimdall-mimird"
-version = "0.6.0"
+version = "0.7.0"
 source = { editable = "." }
 dependencies = [
     { name = "polars" },
@@ -549,6 +549,9 @@ alpaca = [
     { name = "httpx" },
 ]
 cac40 = [
+    { name = "httpx" },
+]
+coingecko = [
     { name = "httpx" },
 ]
 dax = [
@@ -587,6 +590,12 @@ sp500 = [
 testing = [
     { name = "pytest" },
 ]
+treasuries = [
+    { name = "httpx" },
+]
+us-listings = [
+    { name = "httpx" },
+]
 yfinance = [
     { name = "pyarrow" },
     { name = "yfinance" },
@@ -606,6 +615,7 @@ requires-dist = [
     { name = "httpx", marker = "extra == 'all'", specifier = ">=0.27" },
     { name = "httpx", marker = "extra == 'alpaca'", specifier = ">=0.27" },
     { name = "httpx", marker = "extra == 'cac40'", specifier = ">=0.27" },
+    { name = "httpx", marker = "extra == 'coingecko'", specifier = ">=0.27" },
     { name = "httpx", marker = "extra == 'dax'", specifier = ">=0.27" },
     { name = "httpx", marker = "extra == 'dow30'", specifier = ">=0.27" },
     { name = "httpx", marker = "extra == 'fred'", specifier = ">=0.27" },
@@ -617,6 +627,8 @@ requires-dist = [
     { name = "httpx", marker = "extra == 'sec-companyfacts'", specifier = ">=0.27" },
     { name = "httpx", marker = "extra == 'sec-form4'", specifier = ">=0.27" },
     { name = "httpx", marker = "extra == 'sp500'", specifier = ">=0.27" },
+    { name = "httpx", marker = "extra == 'treasuries'", specifier = ">=0.27" },
+    { name = "httpx", marker = "extra == 'us-listings'", specifier = ">=0.27" },
     { name = "polars", specifier = ">=1.44.1" },
     { name = "pyarrow", marker = "extra == 'all'", specifier = ">=15" },
     { name = "pyarrow", marker = "extra == 'yfinance'", specifier = ">=15" },
@@ -625,7 +637,7 @@ requires-dist = [
     { name = "yfinance", marker = "extra == 'all'", specifier = ">=0.2.40" },
     { name = "yfinance", marker = "extra == 'yfinance'", specifier = ">=0.2.40" },
 ]
-provides-extras = ["fred", "sp500", "yfinance", "sec-form4", "sec-companyfacts", "mimird", "alpaca", "nasdaq100", "dow30", "ftse100", "dax", "cac40", "nikkei225", "hang-seng", "testing", "all"]
+provides-extras = ["fred", "sp500", "yfinance", "sec-form4", "sec-companyfacts", "mimird", "alpaca", "nasdaq100", "dow30", "ftse100", "dax", "cac40", "nikkei225", "hang-seng", "us-listings", "coingecko", "treasuries", "testing", "all"]
 
 [package.metadata.requires-dev]
 dev = [

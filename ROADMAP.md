@@ -7,6 +7,8 @@ Legend: `[x]` shipped · `[~]` partially built · `[ ]` planned
 - [x] **Core SDK** - `FetchRequest` / `FetchResult` / `SchemaSpec` contract,
       `Provider` base + `Capabilities`, `ProviderRegistry` with explicit
       registration, error hierarchy, `heimdall.fetch(...)`.
+- [x] **Listing providers** - `us_listings`, `coingecko`, `treasuries` (the
+      `listings` package): what instruments exist, for seeding an instrument master.
 - [x] **Bundled providers** - `fred` (public `fredgraph.csv` endpoint, no key)
       and `yfinance` (OHLCV via the `yfinance` library), each behind an extra.
 - [x] **Provider conformance kit** - `heimdall.testing.assert_provider_conformance`

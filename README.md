@@ -47,6 +47,11 @@ everyone = SP500Provider(pull_unlisted=True).fetch()
 # dax, cac40, nikkei225, hang_seng
 dax = heimdall.fetch("dax", "constituents")
 
+# instrument listings (resource "listings"): us_listings (every US-listed stock/ETF,
+# Nasdaq Trader), coingecko (top crypto + logo URLs; HEIMDALL_COINGECKO_PAGES=4 for
+# 1000), treasuries (outstanding US Treasuries with CUSIP/ISIN, TreasuryDirect)
+listings = heimdall.fetch("us_listings", "listings")
+
 # a list of resources -> BatchResult(.ok / .failed keyed by resource, + combined .frame)
 batch = heimdall.fetch("yfinance", ["AAPL", "MSFT", "NVDA"], interval="1d")
 print(batch.frame.height, list(batch.failed))

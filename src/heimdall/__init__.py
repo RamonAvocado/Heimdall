@@ -77,6 +77,7 @@ _BUNDLED = (
     "indexes",
     "mimird",
     "alpaca",
+    "listings",
 )
 
 
