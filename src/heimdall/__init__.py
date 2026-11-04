@@ -76,6 +76,7 @@ _BUNDLED = (
     "sec_companyfacts",
     "indexes",
     "mimird",
+    "alpaca",
 )
 
 
