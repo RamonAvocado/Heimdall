@@ -19,3 +19,6 @@ sandbox/scratch/*
 .env
 .env.*
 !.env.example
+
+# pytest-benchmark saved runs (local baselines)
+.benchmarks/
