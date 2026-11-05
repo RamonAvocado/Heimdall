@@ -8,7 +8,7 @@ from heimdall.providers import Capabilities, Provider, ProviderMetadata
 
 class _P(Provider):
     metadata = ProviderMetadata(name="p")
-    capabilities = Capabilities(data_kinds=("table.generic",))
+    capabilities = Capabilities(data_kinds=("table",))
 
     def _fetch(self, request):  # pragma: no cover - not exercised here
         raise NotImplementedError
@@ -16,7 +16,7 @@ class _P(Provider):
 
 class _Configurable(Provider):
     metadata = ProviderMetadata(name="cfg")
-    capabilities = Capabilities(data_kinds=("table.generic",))
+    capabilities = Capabilities(data_kinds=("table",))
 
     def __init__(self, *, timeout: float = 30.0) -> None:
         self.timeout = timeout
@@ -27,7 +27,7 @@ class _Configurable(Provider):
 
 class _NeedsToken(Provider):
     metadata = ProviderMetadata(name="needs_token")
-    capabilities = Capabilities(data_kinds=("table.generic",))
+    capabilities = Capabilities(data_kinds=("table",))
 
     def __init__(self, *, token: str) -> None:
         self.token = token
@@ -173,7 +173,36 @@ def test_metadata_is_required() -> None:
     with pytest.raises(TypeError, match="metadata"):
 
         class _NoMeta(Provider):
-            capabilities = Capabilities(data_kinds=("table.generic",))
+            capabilities = Capabilities(data_kinds=("table",))
 
             def _fetch(self, request):  # pragma: no cover
                 raise NotImplementedError
+
+
+class _Bars(Provider):
+    metadata = ProviderMetadata(name="bars")
+    capabilities = Capabilities(data_kinds=("candles", "table"))
+
+    def _fetch(self, request):  # pragma: no cover - not exercised here
+        raise NotImplementedError
+
+
+def test_list_filters_by_kind_without_building_lazy_providers(
+    fresh_registry, monkeypatch
+) -> None:
+    monkeypatch.delenv("HEIMDALL_NEEDS_TOKEN_TOKEN", raising=False)
+    fresh_registry.register(_P)
+    fresh_registry.register(_Bars)
+    # unbuildable without config: listing by kind must not construct it
+    fresh_registry.register_lazy("needs_token", _NeedsToken.from_env)
+
+    assert fresh_registry.list("candles") == ["bars"]
+    assert fresh_registry.list("table") == ["bars", "needs_token", "p"]
+    assert fresh_registry.list("nope") == []
+
+
+def test_bundled_sec_serves_both_kinds() -> None:
+    import heimdall
+
+    assert "sec" in heimdall.list_providers("insider_trading")
+    assert "sec" in heimdall.list_providers("fundamentals")

@@ -13,7 +13,7 @@ import httpx
 import respx
 
 from heimdall.providers.fred import FredProvider
-from heimdall.providers.sec_companyfacts.provider import parse_companyfacts
+from heimdall.providers.sec import parse_companyfacts
 
 _SYMBOLS = [f"S{i}" for i in range(100)]
 _DAYS = [date(1990, 1, 1) + timedelta(days=i) for i in range(10_000)]
@@ -72,6 +72,6 @@ def test_fred_parse_10k_rows(benchmark) -> None:
     assert result.frame.height == 10_000
 
 
-def test_sec_companyfacts_parse(benchmark) -> None:
+def test_sec_parse_companyfacts(benchmark) -> None:
     # The pure parser: fetch() also sleeps for SEC's 10 req/s rate limit.
     assert benchmark(parse_companyfacts, _SEC_DOC)

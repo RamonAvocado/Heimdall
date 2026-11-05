@@ -68,10 +68,11 @@ class SP500Provider(Provider):
         interval: str | None = None,
         start: datetime | None = None,
         end: datetime | None = None,
+        kind: str | None = None,
     ) -> FetchResult | BatchResult:
         """Only one resource exists here, so default it - callers shouldn't
         have to know the sentinel string just to get the list."""
-        return super().fetch(resource, interval, start, end)
+        return super().fetch(resource, interval, start, end, kind)
 
     def _fetch(self, request: FetchRequest) -> FetchResult:
         resource = request.resource.lower()

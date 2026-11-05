@@ -35,6 +35,10 @@ class FetchRequest:
     FRED, an endpoint key for something else. Everything else is optional and
     the provider decides whether it is meaningful; unknown knobs go in
     `params`.
+
+    `kind` picks which data to return when a provider serves several: one of
+    its `capabilities.data_kinds` (a `heimdall.schemas.Kind`, e.g. `"candles"`).
+    Left `None`, `Provider.fetch` resolves it to the provider's first kind.
     """
 
     resource: str
@@ -42,6 +46,7 @@ class FetchRequest:
     start: datetime | None = None
     end: datetime | None = None
     params: Mapping[str, Any] = field(default_factory=dict)
+    kind: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.resource, str) or not self.resource.strip():

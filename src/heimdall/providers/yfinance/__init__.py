@@ -1,10 +1,10 @@
-"""`yfinance`: OHLCV bars from Yahoo Finance."""
+"""`yfinance`: OHLCV bars, fundamentals and analyst ratings from Yahoo Finance."""
 
 from __future__ import annotations
 
-from .provider import YahooFinanceProvider
+from .provider import ANALYST_RATINGS, FUNDAMENTALS, YahooFinanceProvider
 
-__all__ = ["YahooFinanceProvider", "_register_lazy"]
+__all__ = ["ANALYST_RATINGS", "FUNDAMENTALS", "YahooFinanceProvider", "_register_lazy"]
 
 
 def _register_lazy(registry: object) -> None:

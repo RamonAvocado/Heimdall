@@ -49,7 +49,8 @@ class ProviderMetadata:
 class Capabilities:
     """What a provider can do, so a host can route and validate before calling.
 
-    `data_kinds` holds `SchemaSpec.name` values the provider may emit.  An
+    `data_kinds` holds `SchemaSpec.name` values the provider may emit; a
+    caller picks one with `FetchRequest.kind` (the first is the default).  An
     empty `intervals` means the provider is not interval-based (e.g. a daily
     economic series) or accepts anything.  `requires_auth` /
     `rate_limit_per_min` are here because a host reads them *before*
@@ -133,8 +134,19 @@ class Provider(ABC):
         cls._log = get_log(component="provider", name=meta.name)
 
     def _validate_request(self, request: FetchRequest) -> None:
+        """Check `request` and resolve `kind` in place (`None` -> the first of
+        `capabilities.data_kinds`), so `_fetch` always sees a concrete kind."""
         if not request.resource:
             raise RequestError("resource cannot be empty")
+
+        kinds = self.capabilities.data_kinds
+        if request.kind is None:
+            object.__setattr__(request, "kind", kinds[0])
+        elif request.kind not in kinds:
+            raise RequestError(
+                f"{self.id}: kind {request.kind!r} not supported; "
+                f"choose one of {list(kinds)}"
+            )
 
         if (
             request.start is not None
@@ -149,26 +161,30 @@ class Provider(ABC):
         interval: str | None = None,
         start: datetime | None = None,
         end: datetime | None = None,
+        kind: str | None = None,
     ) -> FetchResult | BatchResult:
         """Fetch one resource (returns `FetchResult`) or a list of them
-        (returns `BatchResult`).  `interval` / `start` / `end` apply to every
-        resource in a list.
+        (returns `BatchResult`).  `interval` / `start` / `end` / `kind` apply
+        to every resource in a list; `kind` picks one of
+        `capabilities.data_kinds` (default: the first).
 
         A `FetchRequest` is also accepted (returns `FetchResult`), for when the
-        request needs `params`; then `interval` / `start` / `end` go in it.
+        request needs `params`; then the other arguments go in it.
         """
         if isinstance(resource, FetchRequest):
-            if interval is not None or start is not None or end is not None:
-                raise TypeError("pass interval/start/end only with a resource string")
+            if any(a is not None for a in (interval, start, end, kind)):
+                raise TypeError(
+                    "pass interval/start/end/kind only with a resource string"
+                )
             self._validate_request(resource)
             return self._fetch(resource)
 
         if isinstance(resource, str):
-            request = FetchRequest(resource, interval, start, end)
+            request = FetchRequest(resource, interval, start, end, kind=kind)
             self._validate_request(request)
             return self._fetch(request)
 
-        requests = [FetchRequest(r, interval, start, end) for r in resource]
+        requests = [FetchRequest(r, interval, start, end, kind=kind) for r in resource]
         for request in requests:
             self._validate_request(request)
         return self._fetch_many(requests)
@@ -179,17 +195,20 @@ class Provider(ABC):
         interval: str | None = None,
         start: datetime | None = None,
         end: datetime | None = None,
+        kind: str | None = None,
     ) -> FetchResult | BatchResult:
         """Async mirror of `fetch`.  The blocking work runs in a worker thread;
         a list of resources on a non-`native_batch` provider is fanned out
         concurrently, one thread per resource.
         """
         if isinstance(resource, (str, FetchRequest)) or self.native_batch:
-            return await asyncio.to_thread(self.fetch, resource, interval, start, end)
+            return await asyncio.to_thread(
+                self.fetch, resource, interval, start, end, kind
+            )
 
         resources = list(resource)
         results = await asyncio.gather(
-            *(self.afetch(r, interval, start, end) for r in resources),
+            *(self.afetch(r, interval, start, end, kind) for r in resources),
             return_exceptions=True,
         )
         ok: dict[str, FetchResult] = {}
@@ -227,8 +246,8 @@ class Provider(ABC):
     def from_env(cls, **overrides: Any) -> Provider:
         """Build an instance, resolving each `__init__` param from, in order:
         `overrides`, `heimdall.configure(id, ...)`, the `HEIMDALL_<id>_<param>`
-        env var (or a loaded `.env` file; e.g. `user_agent` on `sec_form4` ->
-        `HEIMDALL_SEC_FORM4_USER_AGENT`), then `[tool.heimdall.<id>]` in the
+        env var (or a loaded `.env` file; e.g. `user_agent` on `sec` ->
+        `HEIMDALL_SEC_USER_AGENT`), then `[tool.heimdall.<id>]` in the
         nearest pyproject.toml.  Raises `ConfigError` naming what's missing.
         """
         # ponytail: env values are always strings; a provider needing a required

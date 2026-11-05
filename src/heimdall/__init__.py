@@ -72,8 +72,7 @@ _BUNDLED = (
     "fred",
     "sp500",
     "yfinance",
-    "sec_form4",
-    "sec_companyfacts",
+    "sec",
     "indexes",
     "mimird",
     "alpaca",
@@ -95,13 +94,9 @@ def fetch(
 
         heimdall.fetch("yfinance", "AAPL", interval="1d")
         heimdall.fetch("yfinance", ["AAPL", "MSFT"], interval="1d")  # -> BatchResult
+        heimdall.fetch("sec", "AAPL", kind="fundamentals")  # one of its kinds
     """
-    provider = get_provider(provider_id)
-    if isinstance(request, FetchRequest):
-        if kwargs:
-            raise TypeError("pass keyword arguments only with the string shorthand")
-        return provider._fetch(request)
-    return provider.fetch(request, **kwargs)
+    return get_provider(provider_id).fetch(request, **kwargs)
 
 
 async def afetch(
@@ -116,7 +111,7 @@ async def afetch(
 
 def configure(provider_id: str, /, **params: Any) -> None:
     """Set a provider's config in code, e.g.
-    `heimdall.configure("sec_form4", user_agent="Acme ops@acme.com")`.
+    `heimdall.configure("sec", user_agent="Acme ops@acme.com")`.
 
     Wins over env vars and `[tool.heimdall.<id>]` in pyproject.toml; repeated
     calls merge.  An already built provider is rebuilt on its next use.

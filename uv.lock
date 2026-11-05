@@ -578,10 +578,7 @@ nasdaq100 = [
 nikkei225 = [
     { name = "httpx" },
 ]
-sec-companyfacts = [
-    { name = "httpx" },
-]
-sec-form4 = [
+sec = [
     { name = "httpx" },
 ]
 sp500 = [
@@ -625,8 +622,7 @@ requires-dist = [
     { name = "httpx", marker = "extra == 'mimird'", specifier = ">=0.27" },
     { name = "httpx", marker = "extra == 'nasdaq100'", specifier = ">=0.27" },
     { name = "httpx", marker = "extra == 'nikkei225'", specifier = ">=0.27" },
-    { name = "httpx", marker = "extra == 'sec-companyfacts'", specifier = ">=0.27" },
-    { name = "httpx", marker = "extra == 'sec-form4'", specifier = ">=0.27" },
+    { name = "httpx", marker = "extra == 'sec'", specifier = ">=0.27" },
     { name = "httpx", marker = "extra == 'sp500'", specifier = ">=0.27" },
     { name = "httpx", marker = "extra == 'treasuries'", specifier = ">=0.27" },
     { name = "httpx", marker = "extra == 'us-listings'", specifier = ">=0.27" },
@@ -638,7 +634,7 @@ requires-dist = [
     { name = "yfinance", marker = "extra == 'all'", specifier = ">=0.2.40" },
     { name = "yfinance", marker = "extra == 'yfinance'", specifier = ">=0.2.40" },
 ]
-provides-extras = ["fred", "sp500", "yfinance", "sec-form4", "sec-companyfacts", "mimird", "alpaca", "nasdaq100", "dow30", "ftse100", "dax", "cac40", "nikkei225", "hang-seng", "us-listings", "coingecko", "treasuries", "testing", "all"]
+provides-extras = ["fred", "sp500", "yfinance", "sec", "mimird", "alpaca", "nasdaq100", "dow30", "ftse100", "dax", "cac40", "nikkei225", "hang-seng", "us-listings", "coingecko", "treasuries", "testing", "all"]
 
 [package.metadata.requires-dev]
 dev = [

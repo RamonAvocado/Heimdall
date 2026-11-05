@@ -4,21 +4,21 @@ Finance via the `yfinance` library."""
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Annotated, Any, Literal
+from typing import Any
 
 import polars as pl
 import yfinance as yf
 
 from heimdall._contracts import BatchResult, FetchRequest, FetchResult
 from heimdall._time import utcnow
-from heimdall.errors import ConfigError, HeimdallError, RequestError, UpstreamError
+from heimdall.errors import HeimdallError, RequestError, UpstreamError
 from heimdall.providers._base import (
     Capabilities,
     Provider,
     ProviderMetadata,
     require_interval,
 )
-from heimdall.schemas import OHLCV_BARS, ColumnSpec, SchemaSpec
+from heimdall.schemas import OHLCV_BARS, ColumnSpec, Kind, SchemaSpec
 
 _EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 _RENAME = {
@@ -45,7 +45,7 @@ _GRADE_RENAME = {
 }
 
 FUNDAMENTALS = SchemaSpec(
-    name="yfinance.fundamentals",
+    name=Kind.FINANCIAL_STATEMENTS.value,
     columns=(
         ColumnSpec("timestamp", pl.Datetime, nullable=False, description="Period end"),
         ColumnSpec("symbol", pl.String, nullable=False),
@@ -66,7 +66,7 @@ FUNDAMENTALS = SchemaSpec(
 )
 
 ANALYST_RATINGS = SchemaSpec(
-    name="yfinance.analyst_ratings",
+    name=Kind.ANALYST_RATINGS.value,
     columns=(
         ColumnSpec("timestamp", pl.Datetime, nullable=False, description="Grade date"),
         ColumnSpec("symbol", pl.String, nullable=False),
@@ -78,21 +78,19 @@ ANALYST_RATINGS = SchemaSpec(
     time_column="timestamp",
 )
 
-Dataset = Literal["bars", "fundamentals", "analyst"]
-
 
 class YahooFinanceProvider(Provider):
-    """One ticker's data from Yahoo Finance; `dataset` picks which:
+    """One ticker's data from Yahoo Finance; `kind` picks which:
 
-    - `"bars"` (default): daily to monthly OHLCV bars, adjusted for splits and
-      dividends. A list of tickers is fetched in one `yf.download` call
-      (`native_batch`). Rows with a null open/high/low/close are dropped.
-    - `"fundamentals"`: income statement, balance sheet and cash flow, annual
-      and quarterly, in long form (`FUNDAMENTALS`).
-    - `"analyst"`: the firm-by-firm upgrade/downgrade history with price
-      targets (`ANALYST_RATINGS`).
+    - `"candles"` (default): daily to monthly OHLCV bars, adjusted for
+      splits and dividends. A list of tickers is fetched in one `yf.download`
+      call (`native_batch`). Rows with a null open/high/low/close are dropped.
+    - `"financial_statements"`: income statement, balance sheet and cash
+      flow, annual and quarterly, in long form (`FUNDAMENTALS`).
+    - `"analyst_ratings"`: the firm-by-firm upgrade/downgrade history
+      with price targets (`ANALYST_RATINGS`).
 
-    `start` / `end` filter every dataset; `interval` only applies to bars.
+    `start` / `end` filter every kind; `interval` only applies to bars.
     """
 
     metadata = ProviderMetadata(
@@ -110,26 +108,15 @@ class YahooFinanceProvider(Provider):
         requires_auth=False,
     )
 
-    def __init__(
-        self,
-        *,
-        dataset: Annotated[
-            Dataset, "What to fetch: 'bars', 'fundamentals' or 'analyst'."
-        ] = "bars",
-    ) -> None:
-        if dataset not in ("bars", "fundamentals", "analyst"):
-            raise ConfigError(
-                f"yfinance: dataset must be 'bars', 'fundamentals' or 'analyst', "
-                f"got {dataset!r}"
-            )
-        self._dataset = dataset
-
     def _fetch(self, request: FetchRequest) -> FetchResult:
-        if self._dataset == "fundamentals":
-            return self._fetch_fundamentals(request)
-        if self._dataset == "analyst":
-            return self._fetch_analyst(request)
+        match request.kind:
+            case FUNDAMENTALS.name:
+                return self._fetch_fundamentals(request)
+            case ANALYST_RATINGS.name:
+                return self._fetch_analyst(request)
+        return self._fetch_bars(request)
 
+    def _fetch_bars(self, request: FetchRequest) -> FetchResult:
         ticker = request.resource
         interval = require_interval(request, self.capabilities, default="1d")
 
@@ -155,7 +142,7 @@ class YahooFinanceProvider(Provider):
         return self._normalize(raw, ticker, interval, request)
 
     def _fetch_many(self, requests: list[FetchRequest]) -> BatchResult:
-        if self._dataset != "bars":
+        if requests[0].kind not in (None, OHLCV_BARS.name):
             return super()._fetch_many(requests)
         if len(requests) == 1:  # no need for a multi-ticker download / column slicing
             req = requests[0]
@@ -331,7 +318,7 @@ class YahooFinanceProvider(Provider):
         frame = frame.sort("timestamp")
         if frame.is_empty():
             raise RequestError(
-                f"no {self._dataset} rows for {request.resource!r} in range"
+                f"no {schema.name} rows for {request.resource!r} in range"
             )
 
         schema.validate(frame)
@@ -343,7 +330,7 @@ class YahooFinanceProvider(Provider):
             retrieved_at=utcnow(),
             metadata={
                 "ticker": request.resource,
-                "dataset": self._dataset,
+                "kind": schema.name,
                 "rows": frame.height,
             },
         )

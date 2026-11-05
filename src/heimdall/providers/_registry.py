@@ -14,7 +14,7 @@ from importlib.metadata import entry_points
 from ramonavocado_logger import get_log
 
 from heimdall.errors import ProviderError, ProviderNotFound
-from heimdall.providers._base import Provider
+from heimdall.providers._base import Capabilities, Provider
 
 __all__ = [
     "PROVIDER_ENTRY_POINT_GROUP",
@@ -139,10 +139,25 @@ class ProviderRegistry:
         if provider_id in self._factories:
             self._providers.pop(provider_id, None)
 
-    def list(self) -> list[str]:
-        """Sorted list of every registered id (loading plugins first)."""
+    def list(self, kind: str | None = None) -> list[str]:
+        """Sorted list of every registered id (loading plugins first).  With
+        `kind`, only providers whose `capabilities.data_kinds` include it."""
         self._load_plugins()
-        return sorted(set(self._providers) | set(self._factories))
+        ids = sorted(set(self._providers) | set(self._factories))
+        if kind is None:
+            return ids
+        return [i for i in ids if kind in self._capabilities(i).data_kinds]
+
+    def _capabilities(self, provider_id: str) -> Capabilities:
+        # From the class, so a lazy provider isn't built (and its config not
+        # demanded) just to be listed.
+        if provider_id in self._providers:
+            return self._providers[provider_id].capabilities
+        factory = self._factories[provider_id]
+        owner = getattr(factory, "__self__", None)  # `SomeProvider.from_env`
+        if isinstance(owner, type) and issubclass(owner, Provider):
+            return owner.capabilities
+        return self.get(provider_id).capabilities
 
     def unregister(self, provider_id: str) -> None:
         self._providers.pop(provider_id, None)
@@ -196,6 +211,7 @@ def get_provider(provider_id: str) -> Provider:
     return PROVIDER_REGISTRY.get(provider_id)
 
 
-def list_providers() -> list[str]:
-    """List ids registered in `PROVIDER_REGISTRY`."""
-    return PROVIDER_REGISTRY.list()
+def list_providers(kind: str | None = None) -> list[str]:
+    """List ids registered in `PROVIDER_REGISTRY`; with `kind` (a
+    `SchemaSpec.name`), only the providers that can return it."""
+    return PROVIDER_REGISTRY.list(kind)

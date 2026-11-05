@@ -8,6 +8,8 @@ and the conformance kit can make stronger assertions.
 
 from __future__ import annotations
 
+from enum import StrEnum
+
 import polars as pl
 
 from heimdall._contracts import ColumnSpec, SchemaSpec
@@ -19,12 +21,29 @@ __all__ = [
     "OBSERVATIONS",
     "OHLCV_BARS",
     "ColumnSpec",
+    "Kind",
     "SchemaSpec",
 ]
 
 
+class Kind(StrEnum):
+    """Every kind of data a bundled provider can return; pass one as
+    `fetch(..., kind=...)`. Each is a `str`, so `kind="candles"` works too.
+    The kind is the returned `SchemaSpec.name`: same kind, same columns, from
+    any provider. A third-party provider may use its own plain-string kinds.
+    """
+
+    CANDLES = "candles"  # OHLCV bars
+    OBSERVATIONS = "observations"  # one value per date (FRED series)
+    FUNDAMENTALS = "fundamentals"  # point-in-time normalized metrics (SEC XBRL)
+    FINANCIAL_STATEMENTS = "financial_statements"  # raw statement line items
+    ANALYST_RATINGS = "analyst_ratings"
+    INSIDER_TRADING = "insider_trading"  # Form 4 transactions
+    TABLE = "table"  # anything else: constituents, listings, ...
+
+
 OHLCV_BARS = SchemaSpec(
-    name="ohlcv.bars",
+    name=Kind.CANDLES.value,
     columns=(
         ColumnSpec(
             "timestamp", pl.Datetime, nullable=False, description="Bar open time"
@@ -44,7 +63,7 @@ OHLCV_BARS = SchemaSpec(
 
 
 OBSERVATIONS = SchemaSpec(
-    name="timeseries.observations",
+    name=Kind.OBSERVATIONS.value,
     columns=(
         ColumnSpec(
             "timestamp", pl.Datetime, nullable=False, description="Observation date"
@@ -60,7 +79,7 @@ OBSERVATIONS = SchemaSpec(
 
 
 FUNDAMENTAL_FACTS = SchemaSpec(
-    name="fundamentals.facts",
+    name=Kind.FUNDAMENTALS.value,
     columns=(
         ColumnSpec("symbol", pl.String, nullable=False),
         ColumnSpec(
@@ -89,7 +108,7 @@ FUNDAMENTAL_FACTS = SchemaSpec(
 )
 
 
-GENERIC_TABLE = SchemaSpec(name="table.generic", columns=())
+GENERIC_TABLE = SchemaSpec(name=Kind.TABLE.value, columns=())
 
 
 KNOWN_SCHEMAS: dict[str, SchemaSpec] = {

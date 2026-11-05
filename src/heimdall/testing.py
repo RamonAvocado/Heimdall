@@ -47,7 +47,7 @@ def assert_provider_conformance(
     )
     assert provider.capabilities.data_kinds, "capabilities.data_kinds must be non-empty"
 
-    result = provider._fetch(sample)
+    result = provider.fetch(sample)
     assert isinstance(result, FetchResult), "fetch() must return a FetchResult"
     assert isinstance(result.frame, pl.DataFrame) and result.frame.height > 0, (
         "result.frame must be a non-empty DataFrame"
@@ -55,8 +55,9 @@ def assert_provider_conformance(
     assert result.provider_id == provider.id, (
         "result.provider_id must equal provider.id"
     )
-    assert result.schema.name in provider.capabilities.data_kinds, (
-        f"result.schema {result.schema.name!r} is not in capabilities.data_kinds"
+    assert result.schema.name == sample.kind, (
+        f"result.schema {result.schema.name!r} is not the requested kind "
+        f"{sample.kind!r}"
     )
 
     # The frame must actually match the schema it claims.
@@ -70,7 +71,8 @@ def assert_provider_conformance(
     assert skew < 3600, "retrieved_at should be roughly now"
 
     # A second identical call yields the same shape.
-    again = provider._fetch(sample)
+    again = provider.fetch(sample)
+    assert isinstance(again, FetchResult)
     assert again.schema.name == result.schema.name
     assert set(again.frame.columns) == set(result.frame.columns)
 
@@ -78,10 +80,12 @@ def assert_provider_conformance(
     if provider.capabilities.intervals:
         bad = replace(sample, interval="definitely-not-a-real-interval")
         with pytest.raises(RequestError):
-            provider._fetch(bad)
+            provider.fetch(bad)
 
     # A one-item list is a BatchResult carrying exactly that resource.
-    batch = provider.fetch([sample.resource], sample.interval, sample.start, sample.end)
+    batch = provider.fetch(
+        [sample.resource], sample.interval, sample.start, sample.end, sample.kind
+    )
     assert isinstance(batch, BatchResult), "fetch([...]) must return a BatchResult"
     assert list(batch.ok) == [sample.resource] and not batch.failed, (
         f"a one-item batch should put exactly that resource in .ok, got {batch}"

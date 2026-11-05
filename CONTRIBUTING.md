@@ -66,6 +66,29 @@ mocking. See `fred` for a provider that does real HTTP. Override
 `_fetch_many(self, requests)` and set `native_batch = True` only when the
 upstream serves several resources in one call, as `yfinance` does.
 
+### One upstream, several kinds of data
+
+One upstream that serves several kinds of data is **one provider**. Don't split
+it into one provider per dataset. List every kind it emits in
+`capabilities.data_kinds`; the first is the default. The caller picks a kind
+with `fetch(..., kind=...)`. The base class rejects a kind that isn't listed,
+so `_fetch` only needs to dispatch on it:
+
+```python
+capabilities = Capabilities(data_kinds=(FORM4_TRANSACTIONS.name, FUNDAMENTAL_FACTS.name))
+
+def _fetch(self, request: FetchRequest) -> FetchResult:
+    match request.kind:
+        case FUNDAMENTAL_FACTS.name:
+            return self._fetch_facts(request)
+    return self._fetch_form4(request)
+```
+
+Reuse an existing schema whenever one fits (`OHLCV_BARS`, `FUNDAMENTAL_FACTS`,
+`FORM4_TRANSACTIONS`, ...). Every provider of that kind then returns the same
+frame, and a host can swap providers through `heimdall.list_providers(kind=...)`.
+`sec` and `yfinance` are worked examples.
+
 ### Register and configure it
 
 ```python
@@ -93,7 +116,8 @@ Subclass `heimdall.testing.ProviderContractTests` and implement
 `assert_provider_conformance(MyProvider(...), FetchRequest("some-resource"))`.
 It checks that:
 
-- `capabilities.data_kinds` is non-empty, and `result.schema.name` is in it.
+- `capabilities.data_kinds` is non-empty, and `result.schema.name` is the
+  requested `kind` (pass `FetchRequest(..., kind=...)` to test a non-default one).
 - `_fetch` returns a non-empty frame that passes `schema.validate()`.
 - `result.provider_id == self.id` and `retrieved_at` is timezone-aware.
 - Two identical requests give the same schema and columns.

@@ -32,10 +32,19 @@ print(result.frame.head())
 bars = heimdall.fetch("yfinance", "AAPL", interval="1d")
 print(bars.frame.tail())
 print(bars.metadata)  # {"ticker": "AAPL", "interval": "1d", "rows": ...}
-# financial statements (long form) or analyst ratings; env: HEIMDALL_YFINANCE_DATASET
-from heimdall.providers.yfinance import YahooFinanceProvider
-fundamentals = YahooFinanceProvider(dataset="fundamentals").fetch("AAPL")
-ratings = YahooFinanceProvider(dataset="analyst").fetch("AAPL")
+# one provider, several kinds of data: `kind` picks one (default: the provider's first).
+# Kinds: candles, observations, fundamentals, financial_statements, analyst_ratings,
+# insider_trading, table; or `from heimdall.schemas import Kind` for autocomplete.
+fundamentals = heimdall.fetch("yfinance", "AAPL", kind="financial_statements")
+ratings = heimdall.fetch("yfinance", "AAPL", kind="analyst_ratings")
+
+# SEC EDGAR: Form 4 insider transactions and point-in-time XBRL fundamentals
+from heimdall import FetchRequest
+from heimdall.providers.sec import SecProvider
+
+sec = SecProvider(user_agent="Your Name you@example.com")
+insiders = sec.fetch(FetchRequest("AAPL", params={"limit": 5}))  # default kind
+facts = sec.fetch("AAPL", kind="fundamentals")
 
 sp500 = heimdall.fetch("sp500", "constituents")
 print(sp500.frame.select("symbol", "security", "gics_sector").head())
@@ -60,7 +69,9 @@ print(batch.frame.height, list(batch.failed))
 result = await heimdall.afetch("fred", ["DGS10", "GDP"])
 ```
 
-`heimdall.list_providers()` shows what's registered. Providers are registered
+`heimdall.list_providers()` shows what's registered;
+`heimdall.list_providers(kind="candles")` only the ones that can return that
+kind, so a host can route by capability. Providers are registered
 automatically when their extra is installed; register your own with
 `heimdall.register(MyProvider)` (pass a constructed instance,
 `heimdall.register(MyProvider(timeout=10))`, to override its `__init__`
@@ -73,16 +84,16 @@ failing blank.
 Providers that need config (an API key, a contact for SEC) read it from, in order:
 
 ```python
-heimdall.configure("sec_form4", user_agent="Your Name you@example.com")  # 1. code
+heimdall.configure("sec", user_agent="Your Name you@example.com")  # 1. code
 ```
 
 ```bash
-export HEIMDALL_SEC_FORM4_USER_AGENT="Your Name you@example.com"  # 2. env / .env
+export HEIMDALL_SEC_USER_AGENT="Your Name you@example.com"  # 2. env / .env
 ```
 
 ```toml
 # 3. pyproject.toml - one place for every package's config; no secrets, it's committed
-[tool.heimdall.sec_form4]
+[tool.heimdall.sec]
 user_agent = "Your Name you@example.com"
 ```
 

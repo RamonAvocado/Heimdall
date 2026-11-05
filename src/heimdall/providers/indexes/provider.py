@@ -61,9 +61,10 @@ class _IndexProvider(Provider):
         interval: str | None = None,
         start: datetime | None = None,
         end: datetime | None = None,
+        kind: str | None = None,
     ) -> FetchResult | BatchResult:
         """Only one resource exists here, so default it."""
-        return super().fetch(resource, interval, start, end)
+        return super().fetch(resource, interval, start, end, kind)
 
     def _fetch(self, request: FetchRequest) -> FetchResult:
         if request.resource.lower() != _RESOURCE:

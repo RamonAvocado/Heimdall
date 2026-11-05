@@ -10,7 +10,7 @@ from heimdall.providers import Capabilities, Provider, ProviderMetadata
 
 class _NeedsToken(Provider):
     metadata = ProviderMetadata(name="needs_token")
-    capabilities = Capabilities(data_kinds=("table.generic",))
+    capabilities = Capabilities(data_kinds=("table",))
 
     def __init__(self, *, token: str) -> None:
         self.token = token

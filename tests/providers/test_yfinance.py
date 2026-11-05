@@ -8,7 +8,7 @@ import pytest
 import yfinance as yf
 
 from heimdall._contracts import BatchResult, FetchRequest
-from heimdall.errors import ConfigError, RequestError, UpstreamError
+from heimdall.errors import RequestError, UpstreamError
 from heimdall.providers.yfinance import YahooFinanceProvider
 from heimdall.providers.yfinance.provider import ANALYST_RATINGS, FUNDAMENTALS
 from heimdall.schemas import OHLCV_BARS
@@ -158,7 +158,7 @@ class _FakeTicker:
 
 def test_fundamentals_long_form(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(yf, "Ticker", _FakeTicker)
-    result = YahooFinanceProvider(dataset="fundamentals").fetch("AAPL")
+    result = YahooFinanceProvider().fetch("AAPL", kind=FUNDAMENTALS.name)
 
     assert result.schema is FUNDAMENTALS
     FUNDAMENTALS.validate(result.frame)
@@ -174,8 +174,8 @@ def test_fundamentals_long_form(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_analyst_ratings_normalized(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(yf, "Ticker", _FakeTicker)
-    result = YahooFinanceProvider(dataset="analyst").fetch(
-        "AAPL", start=datetime(2026, 1, 1)
+    result = YahooFinanceProvider().fetch(
+        "AAPL", start=datetime(2026, 1, 1), kind=ANALYST_RATINGS.name
     )
 
     assert result.schema is ANALYST_RATINGS
@@ -193,7 +193,7 @@ def test_analyst_batch_goes_per_ticker(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         yf, "Ticker", lambda t: _FakeTicker(t) if t == "AAPL" else _Empty()
     )
-    batch = YahooFinanceProvider(dataset="analyst").fetch(["AAPL", "BADX"])
+    batch = YahooFinanceProvider().fetch(["AAPL", "BADX"], kind=ANALYST_RATINGS.name)
     assert list(batch.ok) == ["AAPL"]
     assert isinstance(batch.failed["BADX"], RequestError)
 
@@ -206,12 +206,12 @@ def test_ticker_exception_becomes_upstream_error(
 
     monkeypatch.setattr(yf, "Ticker", boom)
     with pytest.raises(UpstreamError):
-        YahooFinanceProvider(dataset="fundamentals").fetch("AAPL")
+        YahooFinanceProvider().fetch("AAPL", kind=FUNDAMENTALS.name)
 
 
-def test_bad_dataset_rejected() -> None:
-    with pytest.raises(ConfigError):
-        YahooFinanceProvider(dataset="news")  # type: ignore[arg-type]
+def test_unknown_kind_rejected() -> None:
+    with pytest.raises(RequestError, match="kind"):
+        YahooFinanceProvider().fetch("AAPL", kind="news")
 
 
 class TestYFinanceContract(ProviderContractTests):
@@ -234,8 +234,8 @@ def test_yfinance_live() -> None:
 
 
 @pytest.mark.network
-@pytest.mark.parametrize("dataset", ["fundamentals", "analyst"])
-def test_yfinance_datasets_live(dataset: str) -> None:
-    result = YahooFinanceProvider(dataset=dataset).fetch("AAPL")  # type: ignore[arg-type]
+@pytest.mark.parametrize("kind", [FUNDAMENTALS.name, ANALYST_RATINGS.name])
+def test_yfinance_kinds_live(kind: str) -> None:
+    result = YahooFinanceProvider().fetch("AAPL", kind=kind)
     result.schema.validate(result.frame)
     assert result.frame.height > 10
