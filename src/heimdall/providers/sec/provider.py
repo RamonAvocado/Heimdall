@@ -65,6 +65,7 @@ class SecProvider(Provider):
     ) -> None:
         self._user_agent = user_agent
         self._timeout = timeout
+        self._ciks: dict[str, str] | None = None  # ticker -> CIK, fetched once
 
     def _fetch(self, request: FetchRequest) -> FetchResult:
         match request.kind:
@@ -176,10 +177,13 @@ class SecProvider(Provider):
         )
 
     def _resolve_cik(self, ticker: str) -> str:
-        data = self._get(_TICKERS_URL).json()
-        for row in data.values():
-            if row["ticker"].upper() == ticker.upper():
-                return f"{row['cik_str']:010d}"
+        if self._ciks is None:
+            self._ciks = {
+                row["ticker"].upper(): f"{row['cik_str']:010d}"
+                for row in self._get(_TICKERS_URL).json().values()
+            }
+        if cik := self._ciks.get(ticker.upper()):
+            return cik
         raise RequestError(f"ticker {ticker!r} not found in SEC's company_tickers.json")
 
     def _list_form4_filings(self, cik: str) -> list[dict[str, Any]]:
@@ -192,12 +196,16 @@ class SecProvider(Provider):
     def _parse_filing(self, cik: str, entry: dict[str, Any]) -> dict[str, Any]:
         accession_nodash = entry["accessionNumber"].replace("-", "")
         base = f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession_nodash}"
-        index = self._get(f"{base}/index.json").json()
-        xml_name = next(
-            item["name"]
-            for item in index["directory"]["item"]
-            if item["name"].endswith(".xml")
-        )
+        # primaryDocument is the XSL-rendered path ("xslF345X05/x.xml"); its
+        # basename is the raw XML, so no index.json round-trip is needed.
+        xml_name = (entry.get("primaryDocument") or "").rsplit("/", 1)[-1]
+        if not xml_name.endswith(".xml"):
+            index = self._get(f"{base}/index.json").json()
+            xml_name = next(
+                item["name"]
+                for item in index["directory"]["item"]
+                if item["name"].endswith(".xml")
+            )
         return parse_form4_xml(self._get(f"{base}/{xml_name}").text)
 
     def _get(self, url: str) -> httpx.Response:

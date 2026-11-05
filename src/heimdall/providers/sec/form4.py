@@ -71,7 +71,8 @@ def parse_form4_xml(xml_text: str) -> dict:
         table_el = root.find(table)
         if table_el is None:
             continue
-        for txn in table_el:
+        # Only transactions: a table also lists holdings (positions, no date).
+        for txn in table_el.findall(f"{table.removesuffix('Table')}Transaction"):
             transactions.append(
                 {
                     "kind": kind,

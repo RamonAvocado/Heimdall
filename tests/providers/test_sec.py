@@ -34,6 +34,7 @@ _SUBMISSIONS_JSON = {
             "accessionNumber": [_ACCESSION_A, _ACCESSION_B],
             "filingDate": ["2026-09-17", "2026-09-10"],
             "form": ["4", "4"],
+            "primaryDocument": ["xslF345X05/form4.xml", "xslF345X05/form4.xml"],
         }
     }
 }
@@ -69,6 +70,13 @@ _XML_A = """<?xml version="1.0"?>
       </postTransactionAmounts>
       <ownershipNature><directOrIndirectOwnership><value>D</value></directOrIndirectOwnership></ownershipNature>
     </nonDerivativeTransaction>
+    <nonDerivativeHolding>
+      <securityTitle><value>Common Stock</value></securityTitle>
+      <postTransactionAmounts>
+        <sharesOwnedFollowingTransaction><value>500</value></sharesOwnedFollowingTransaction>
+      </postTransactionAmounts>
+      <ownershipNature><directOrIndirectOwnership><value>I</value></directOrIndirectOwnership></ownershipNature>
+    </nonDerivativeHolding>
   </nonDerivativeTable>
   <derivativeTable>
     <derivativeTransaction>
@@ -138,14 +146,48 @@ def _mock_common(router: respx.MockRouter) -> None:
 def _mock_filing(
     router: respx.MockRouter, base: str, xml_name: str, xml_text: str
 ) -> None:
-    router.get(f"{base}/index.json").mock(
-        return_value=httpx.Response(
-            200, json={"directory": {"item": [{"name": xml_name}]}}
-        )
-    )
+    # No index.json mock: the XML name comes from primaryDocument, and respx
+    # rejects any unmocked request.
     router.get(f"{base}/{xml_name}").mock(
         return_value=httpx.Response(200, text=xml_text)
     )
+
+
+@respx.mock
+def test_falls_back_to_index_json_without_primary_document() -> None:
+    submissions = {
+        "filings": {
+            "recent": {
+                **_SUBMISSIONS_JSON["filings"]["recent"],
+                "primaryDocument": ["", ""],
+            }
+        }
+    }
+    respx.get(_TICKERS_URL).mock(return_value=httpx.Response(200, json=_TICKERS_JSON))
+    respx.get(_SUBMISSIONS_URL).mock(return_value=httpx.Response(200, json=submissions))
+    respx.get(f"{_BASE_A}/index.json").mock(
+        return_value=httpx.Response(
+            200, json={"directory": {"item": [{"name": "other.xml"}]}}
+        )
+    )
+    _mock_filing(respx, _BASE_A, "other.xml", _XML_A)
+
+    result = _provider()._fetch(FetchRequest(resource="AAPL", params={"limit": 1}))
+
+    assert result.metadata["filings_matched"] == 1
+
+
+@respx.mock
+def test_ticker_map_is_fetched_once() -> None:
+    _mock_common(respx)
+    _mock_filing(respx, _BASE_A, "form4.xml", _XML_A)
+    tickers = respx.routes[0]
+    provider = _provider()
+
+    provider._fetch(FetchRequest(resource="AAPL", params={"limit": 1}))
+    provider._fetch(FetchRequest(resource="AAPL", params={"limit": 1}))
+
+    assert tickers.call_count == 1
 
 
 @respx.mock
