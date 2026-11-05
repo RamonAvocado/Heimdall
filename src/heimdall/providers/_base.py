@@ -145,7 +145,7 @@ class Provider(ABC):
 
     def fetch(
         self,
-        resource: str | Sequence[str],
+        resource: FetchRequest | str | Sequence[str],
         interval: str | None = None,
         start: datetime | None = None,
         end: datetime | None = None,
@@ -153,7 +153,16 @@ class Provider(ABC):
         """Fetch one resource (returns `FetchResult`) or a list of them
         (returns `BatchResult`).  `interval` / `start` / `end` apply to every
         resource in a list.
+
+        A `FetchRequest` is also accepted (returns `FetchResult`), for when the
+        request needs `params`; then `interval` / `start` / `end` go in it.
         """
+        if isinstance(resource, FetchRequest):
+            if interval is not None or start is not None or end is not None:
+                raise TypeError("pass interval/start/end only with a resource string")
+            self._validate_request(resource)
+            return self._fetch(resource)
+
         if isinstance(resource, str):
             request = FetchRequest(resource, interval, start, end)
             self._validate_request(request)
@@ -166,7 +175,7 @@ class Provider(ABC):
 
     async def afetch(
         self,
-        resource: str | Sequence[str],
+        resource: FetchRequest | str | Sequence[str],
         interval: str | None = None,
         start: datetime | None = None,
         end: datetime | None = None,
@@ -175,7 +184,7 @@ class Provider(ABC):
         a list of resources on a non-`native_batch` provider is fanned out
         concurrently, one thread per resource.
         """
-        if isinstance(resource, str) or self.native_batch:
+        if isinstance(resource, (str, FetchRequest)) or self.native_batch:
             return await asyncio.to_thread(self.fetch, resource, interval, start, end)
 
         resources = list(resource)
