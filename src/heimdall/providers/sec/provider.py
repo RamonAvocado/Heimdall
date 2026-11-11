@@ -32,7 +32,8 @@ class SecProvider(Provider):
       Form 4 transaction line. Scope it with `FetchRequest.params`:
       `{"limit": n}` (the `n` most recent filings), `{"owner": "Newstead
       Jennifer"}` (exact match, every filing by that owner), `{"since":
-      "2026-09-01"}` (only filings filed after that date), or any mix. Codes
+      "2026-09-01"}` (only filings filed after that date), or any mix; add
+      `{"offset": k}` to skip the `k` most recent first (paging). Codes
       are not interpreted (e.g. "F" is tax withholding, not a discretionary
       sale): that judgment belongs to the consumer.
     - `"fundamentals"`: revenue, earnings, cash flow and balance-sheet
@@ -79,6 +80,7 @@ class SecProvider(Provider):
         limit = request.params.get("limit")
         owner = request.params.get("owner")
         since = request.params.get("since")
+        offset = int(request.params.get("offset") or 0)
         if limit is None and owner is None and since is None:
             raise RequestError(
                 "sec form4 needs params={'limit': n}, {'owner': 'Exact Name'} "
@@ -91,6 +93,7 @@ class SecProvider(Provider):
             # ISO dates compare as strings; the filings list costs one request,
             # each skipped filing saves two.
             filings = [f for f in filings if f["filingDate"] > str(since)]
+        filings = filings[offset:]
         to_scan = filings if owner is not None else filings[:limit]
 
         matched: list[dict[str, Any]] = []

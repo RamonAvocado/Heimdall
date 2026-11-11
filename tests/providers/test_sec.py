@@ -220,6 +220,18 @@ def test_since_skips_older_filings() -> None:
     assert result.frame["accession_number"].unique().to_list() == [_ACCESSION_A]
 
 
+@respx.mock
+def test_offset_skips_the_most_recent_filings() -> None:
+    _mock_common(respx)
+    _mock_filing(respx, _BASE_B, "form4.xml", _XML_B)  # A (the newest) unmocked
+
+    result = _provider()._fetch(
+        FetchRequest(resource="AAPL", params={"offset": 1, "limit": 1})
+    )
+
+    assert result.frame["accession_number"].unique().to_list() == [_ACCESSION_B]
+
+
 def test_role_flags_accept_1_and_true() -> None:
     xml = _XML_A.replace(
         "<isDirector>false</isDirector>", "<isDirector>1</isDirector>"
