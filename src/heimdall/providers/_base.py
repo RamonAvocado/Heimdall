@@ -262,7 +262,11 @@ class Provider(ABC):
         kwargs: dict[str, Any] = {}
         missing: list[tuple[str, str]] = []
         for name, param in params.items():
-            if name == "self":
+            # *args/**kwargs (object.__init__'s, when a provider has none): not config.
+            if name == "self" or param.kind in (
+                param.VAR_POSITIONAL,
+                param.VAR_KEYWORD,
+            ):
                 continue
             source = next((s for s in sources if name in s), None)
             if source is not None:

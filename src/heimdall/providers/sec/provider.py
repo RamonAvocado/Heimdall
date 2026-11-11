@@ -31,7 +31,8 @@ class SecProvider(Provider):
     - `"insider_trading"` (default): insider transactions, one row per
       Form 4 transaction line. Scope it with `FetchRequest.params`:
       `{"limit": n}` (the `n` most recent filings), `{"owner": "Newstead
-      Jennifer"}` (exact match, every filing by that owner), or both. Codes
+      Jennifer"}` (exact match, every filing by that owner), `{"since":
+      "2026-09-01"}` (only filings filed after that date), or any mix. Codes
       are not interpreted (e.g. "F" is tax withholding, not a discretionary
       sale): that judgment belongs to the consumer.
     - `"fundamentals"`: revenue, earnings, cash flow and balance-sheet
@@ -77,14 +78,19 @@ class SecProvider(Provider):
         ticker = request.resource
         limit = request.params.get("limit")
         owner = request.params.get("owner")
-        if limit is None and owner is None:
+        since = request.params.get("since")
+        if limit is None and owner is None and since is None:
             raise RequestError(
-                "sec form4 needs params={'limit': n} "
-                "and/or params={'owner': 'Exact Name'}"
+                "sec form4 needs params={'limit': n}, {'owner': 'Exact Name'} "
+                "and/or {'since': 'YYYY-MM-DD'}"
             )
 
         cik = self._resolve_cik(ticker)
         filings = self._list_form4_filings(cik)
+        if since is not None:
+            # ISO dates compare as strings; the filings list costs one request,
+            # each skipped filing saves two.
+            filings = [f for f in filings if f["filingDate"] > str(since)]
         to_scan = filings if owner is not None else filings[:limit]
 
         matched: list[dict[str, Any]] = []

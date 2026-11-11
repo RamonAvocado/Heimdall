@@ -92,7 +92,9 @@ def parse_form4_xml(xml_text: str) -> dict:
             )
 
     def _flag(tag: str) -> bool:
-        return relationship is not None and relationship.findtext(tag) == "true"
+        # SEC filers write these as "1"/"0" as often as "true"/"false".
+        text = relationship.findtext(tag) if relationship is not None else None
+        return (text or "").strip().lower() in ("1", "true")
 
     roles = []
     if _flag("isDirector"):

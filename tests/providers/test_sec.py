@@ -10,6 +10,7 @@ from heimdall._contracts import FetchRequest
 from heimdall.errors import ConfigError, RequestError, UpstreamError
 from heimdall.providers import ProviderRegistry
 from heimdall.providers.sec import FORM4_TRANSACTIONS, SecProvider, parse_companyfacts
+from heimdall.providers.sec.form4 import parse_form4_xml
 from heimdall.schemas import FUNDAMENTAL_FACTS
 from heimdall.testing import ProviderContractTests
 
@@ -205,6 +206,28 @@ def test_limit_mode_returns_flattened_rows() -> None:
     assert result.frame.height == 2
     assert result.frame["owner"].unique().to_list() == ["Newstead Jennifer"]
     assert result.frame["accession_number"].unique().to_list() == [_ACCESSION_A]
+
+
+@respx.mock
+def test_since_skips_older_filings() -> None:
+    _mock_common(respx)
+    _mock_filing(respx, _BASE_A, "form4.xml", _XML_A)  # B (2026-09-10) unmocked
+
+    result = _provider()._fetch(
+        FetchRequest(resource="AAPL", params={"since": "2026-09-10"})
+    )
+
+    assert result.frame["accession_number"].unique().to_list() == [_ACCESSION_A]
+
+
+def test_role_flags_accept_1_and_true() -> None:
+    xml = _XML_A.replace(
+        "<isDirector>false</isDirector>", "<isDirector>1</isDirector>"
+    ).replace("<isOfficer>true</isOfficer>", "<isOfficer>0</isOfficer>")
+    assert parse_form4_xml(xml)["position"] == "director"
+    assert parse_form4_xml(_XML_A)["position"] == (
+        "officer (SVP, GC and Government Affairs)"
+    )
 
 
 @respx.mock

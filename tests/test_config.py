@@ -103,3 +103,15 @@ def test_configure_rebuilds_a_lazily_built_provider(monkeypatch) -> None:
         assert PROVIDER_REGISTRY.get("needs_token").token == "b"
     finally:
         PROVIDER_REGISTRY.unregister("needs_token")
+
+
+def test_from_env_builds_a_provider_without_its_own_init() -> None:
+    # object.__init__'s *args/**kwargs aren't config (yfinance has no __init__).
+    class _NoInit(Provider):
+        metadata = ProviderMetadata(name="no_init")
+        capabilities = Capabilities(data_kinds=("table",))
+
+        def _fetch(self, request):  # pragma: no cover - not exercised here
+            raise NotImplementedError
+
+    assert isinstance(_NoInit.from_env(), _NoInit)
