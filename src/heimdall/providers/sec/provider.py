@@ -17,6 +17,13 @@ from heimdall.schemas import FUNDAMENTAL_FACTS
 
 from .companyfacts import parse_companyfacts
 from .form4 import FORM4_TRANSACTIONS, parse_form4_xml
+from .form13f import (
+    DOLLAR_VALUES_FROM,
+    FORM13F_FILERS,
+    FORM13F_HOLDINGS,
+    parse_form_index,
+    parse_information_table,
+)
 
 _TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 _MIN_GAP = 0.1  # 10 req/s max, per SEC's fair-access policy
@@ -41,6 +48,13 @@ class SecProvider(Provider):
       Point-in-time: each value keeps the date it was first filed
       (`reported_at`). Missing quarters (Q4, YTD-only cash flow) are derived
       by differencing year-to-date figures.
+    - `"13f_holdings"`: an institution's 13F-HR holdings, one row per line of
+      each filing's information table. The resource is the filer's CIK (not a
+      ticker). Scope with `{"limit": n}` (most recent filings) and/or
+      `{"since": "YYYY-MM-DD"}`. `value` is always in dollars (pre-2023 filings
+      reported thousands; converted here). Amendments (13F-HR/A) are skipped.
+    - `"13f_filers"`: everyone who filed a 13F-HR in one quarter, from EDGAR's
+      form index. Resource is `"YYYY-Qn"`, e.g. `"2026-Q3"`.
 
     No API key, but SEC requires a real, contactable `User-Agent` (there is
     no safe shared default) and rate-limits fair use to ~10 req/s, enforced
@@ -53,7 +67,12 @@ class SecProvider(Provider):
         "fundamentals from SEC EDGAR.",
     )
     capabilities = Capabilities(
-        data_kinds=(FORM4_TRANSACTIONS.name, FUNDAMENTAL_FACTS.name),
+        data_kinds=(
+            FORM4_TRANSACTIONS.name,
+            FUNDAMENTAL_FACTS.name,
+            FORM13F_HOLDINGS.name,
+            FORM13F_FILERS.name,
+        ),
         supports_date_range=False,
     )
 
@@ -73,6 +92,10 @@ class SecProvider(Provider):
         match request.kind:
             case FUNDAMENTAL_FACTS.name:
                 return self._fetch_companyfacts(request)
+            case FORM13F_HOLDINGS.name:
+                return self._fetch_13f(request)
+            case FORM13F_FILERS.name:
+                return self._fetch_13f_filers(request)
         return self._fetch_form4(request)
 
     def _fetch_form4(self, request: FetchRequest) -> FetchResult:
@@ -185,6 +208,116 @@ class SecProvider(Provider):
             metadata={"cik": cik, "rows": frame.height},
         )
 
+    def _fetch_13f(self, request: FetchRequest) -> FetchResult:
+        if not request.resource.isdigit():
+            raise RequestError(f"13f_holdings needs a CIK, got {request.resource!r}")
+        cik = f"{int(request.resource):010d}"
+        limit = request.params.get("limit")
+        since = request.params.get("since")
+        if limit is None and since is None:
+            raise RequestError(
+                "sec 13f needs params={'limit': n} and/or {'since': 'YYYY-MM-DD'}"
+            )
+
+        # ponytail: only `filings.recent` (the newest ~1000 filings); a filer
+        # with more keeps its oldest 13Fs in `filings.files`, not read here.
+        filings = [f for f in self._recent_filings(cik) if f["form"] == "13F-HR"]
+        if since is not None:
+            filings = [f for f in filings if f["filingDate"] > str(since)]
+        if limit is not None:
+            filings = filings[: int(limit)]
+
+        rows = []
+        for entry in filings:
+            scale = 1000.0 if entry["filingDate"] < DOLLAR_VALUES_FROM else 1.0
+            for line in parse_information_table(self._information_table(cik, entry)):
+                rows.append(
+                    {
+                        "accession_number": entry["accessionNumber"],
+                        "filing_date": entry["filingDate"],
+                        "period": entry.get("reportDate") or entry["filingDate"],
+                        **line,
+                        "value": float(line["value"] or 0) * scale,
+                    }
+                )
+        if not rows:
+            raise RequestError(f"no 13F-HR holdings for CIK {cik}")
+
+        frame = (
+            pl.DataFrame(rows)
+            .with_columns(
+                pl.col("filing_date").str.strptime(pl.Date, strict=False),
+                pl.col("period").str.strptime(pl.Date, strict=False),
+                pl.col("shares").cast(pl.Float64, strict=False),
+                pl.col("value").cast(pl.Float64, strict=False),
+                pl.col("issuer", "title", "share_type", "put_call").cast(pl.String),
+            )
+            .filter(pl.col("shares").is_not_null() & (pl.col("cusip") != ""))
+            .sort("filing_date")
+        )
+        FORM13F_HOLDINGS.validate(frame)
+        return FetchResult(
+            frame=frame,
+            schema=FORM13F_HOLDINGS,
+            provider_id=self.id,
+            request=request,
+            retrieved_at=utcnow(),
+            metadata={"cik": cik, "filings": len(filings)},
+        )
+
+    def _information_table(self, cik: str, entry: dict[str, Any]) -> str:
+        base = (
+            f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/"
+            f"{entry['accessionNumber'].replace('-', '')}"
+        )
+        items = self._get(f"{base}/index.json").json()["directory"]["item"]
+        # The filing holds primary_doc.xml (the cover) and the information table,
+        # whose name is the filer's choice; it's the other (and larger) XML.
+        xml = [
+            i
+            for i in items
+            if i["name"].lower().endswith(".xml")
+            and i["name"].lower() != "primary_doc.xml"
+        ]
+        if not xml:
+            raise UpstreamError(f"no information table in {base}")
+        name = max(xml, key=lambda i: int(i.get("size") or 0))["name"]
+        return self._get(f"{base}/{name}").text
+
+    def _fetch_13f_filers(self, request: FetchRequest) -> FetchResult:
+        try:
+            year, quarter = request.resource.upper().split("-Q")
+            url = f"https://www.sec.gov/Archives/edgar/full-index/{int(year)}/QTR{int(quarter)}/form.idx"
+        except ValueError as exc:
+            raise RequestError(
+                f"13f_filers needs 'YYYY-Qn', got {request.resource!r}"
+            ) from exc
+        rows = parse_form_index(self._get(url).text)
+        if not rows:
+            raise RequestError(f"no 13F-HR filers in {request.resource}")
+        frame = (
+            pl.DataFrame(rows)
+            .with_columns(pl.col("filing_date").str.strptime(pl.Date, strict=False))
+            .sort("filing_date")
+            .unique("cik", keep="last", maintain_order=True)
+        )
+        FORM13F_FILERS.validate(frame)
+        return FetchResult(
+            frame=frame,
+            schema=FORM13F_FILERS,
+            provider_id=self.id,
+            request=request,
+            retrieved_at=utcnow(),
+            metadata={"filers": frame.height},
+        )
+
+    def _recent_filings(self, cik: str) -> list[dict[str, Any]]:
+        recent = self._get(f"https://data.sec.gov/submissions/CIK{cik}.json").json()[
+            "filings"
+        ]["recent"]
+        columns = zip(*recent.values(), strict=True)
+        return [dict(zip(recent.keys(), values, strict=True)) for values in columns]
+
     def _resolve_cik(self, ticker: str) -> str:
         if self._ciks is None:
             self._ciks = {
@@ -196,11 +329,7 @@ class SecProvider(Provider):
         raise RequestError(f"ticker {ticker!r} not found in SEC's company_tickers.json")
 
     def _list_form4_filings(self, cik: str) -> list[dict[str, Any]]:
-        url = f"https://data.sec.gov/submissions/CIK{cik}.json"
-        recent = self._get(url).json()["filings"]["recent"]
-        columns = zip(*recent.values(), strict=True)
-        rows = [dict(zip(recent.keys(), values, strict=True)) for values in columns]
-        return [row for row in rows if row["form"] == "4"]
+        return [row for row in self._recent_filings(cik) if row["form"] == "4"]
 
     def _parse_filing(self, cik: str, entry: dict[str, Any]) -> dict[str, Any]:
         accession_nodash = entry["accessionNumber"].replace("-", "")

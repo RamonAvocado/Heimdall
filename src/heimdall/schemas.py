@@ -39,6 +39,8 @@ class Kind(StrEnum):
     FINANCIAL_STATEMENTS = "financial_statements"  # raw statement line items
     ANALYST_RATINGS = "analyst_ratings"
     INSIDER_TRADING = "insider_trading"  # Form 4 transactions
+    HOLDINGS_13F = "13f_holdings"  # institutional holdings per quarter (SEC 13F-HR)
+    FILERS_13F = "13f_filers"  # who filed a 13F-HR in a quarter
     TABLE = "table"  # anything else: constituents, listings, ...
 
 
